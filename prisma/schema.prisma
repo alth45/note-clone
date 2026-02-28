@@ -1,0 +1,131 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Arsitektur Dasar ala Note.com ---
+// Tabel User Utama
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  handle        String?   @unique // <--- TAMBAHIN INI (Username unik)
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // Cuma keisi kalau dia daftar manual (bukan Google/Github)
+  bio           String?
+  folders       Folder[] 
+  
+  accounts      Account[]
+  sessions      Session[]
+  posts         Post[]   
+  likes       Like[]
+  bookmarks   Bookmark[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+// --- TABEL FOLDER (TABEL BARU) ---
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  
+  // Relasi Pemilik Folder
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relasi Induk & Anak (Self-Relation)
+  parentId  String?  // Kalau null berarti di paling luar (Root)
+  parent    Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[] @relation("FolderHierarchy")
+  
+  // Relasi ke Artikel (Satu folder bisa punya banyak post)
+  posts     Post[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId]) // Biar query folder berdasarkan user makin ngebut
+}
+
+// Tabel Account (Buat nampung data dari Google/Github)
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id         String   @id @default(cuid())
+  title      String
+  slug       String   @unique // URL ramah SEO, misal: /judul-artikel-keren
+  content    Json?    // Kita pakai Json karena nanti editornya pakai block style (Tiptap/Editor.js)
+  published  Boolean  @default(false)
+  coverImage String?  // Gambar header artikel
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  // Relasi Folder (Tambahan Baru)
+  folderId   String?  // Kalau null berarti filenya ada di luar (Root)
+  folder     Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  views       Int      @default(0)
+  likesCount  Int       @default(0) // Biar gampang ngitung total like
+  likes       Like[]
+  bookmarks   Bookmark[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([slug]) // Biar pencarian artikel via URL makin ngebut
+  @@index([folderId]) // Biar nyari artikel di dalem folder makin cepet
+}
+
+// --- BIKIN 2 MODEL BARU INI DI BAWAH ---
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId]) // 1 user cuma bisa like 1 kali per artikel
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId]) // 1 user cuma bisa bookmark 1 kali per artikel
+}

@@ -1,6 +1,7 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
-:root {
+/* :root {
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -23,4 +24,98 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+} */
+
+@layer base {
+  :root {
+    /* Warna Washi (Background ala kertas) */
+    --washi: #F9F9F8;
+    --washi-dark: #F0F0EE;
+
+    /* Warna Sumi (Tinta tegas) */
+    --sumi: #1C1C1E;
+    --sumi-light: #2C2C2E;
+    --sumi-muted: #8E8E93;
+
+    /* Transparansi khusus untuk border/bayangan (Sumi dengan opacity 10%) */
+    --sumi-alpha-10: rgba(28, 28, 30, 0.1);
+
+    /* Warna Aksen */
+    --matcha: #E4E8D6;
+  }
+
+  /* Set default warna body biar otomatis Jepang minimalis */
+  body {
+    background-color: var(--washi);
+    color: var(--sumi);
+  }
+}
+
+@layer utilities {
+
+  /* --- Background Classes --- */
+  .bg-washi {
+    background-color: var(--washi);
+  }
+
+  .bg-washi-dark {
+    background-color: var(--washi-dark);
+  }
+
+  .bg-sumi {
+    background-color: var(--sumi);
+  }
+
+  .bg-sumi-light {
+    background-color: var(--sumi-light);
+  }
+
+  .bg-matcha {
+    background-color: var(--matcha);
+  }
+
+  /* --- Text Classes --- */
+  .text-washi {
+    color: var(--washi);
+  }
+
+  .text-sumi {
+    color: var(--sumi);
+  }
+
+  .text-sumi-light {
+    color: var(--sumi-light);
+  }
+
+  .text-sumi-muted {
+    color: var(--sumi-muted);
+  }
+
+  .text-matcha {
+    color: var(--matcha);
+  }
+
+  /* --- Border Classes --- */
+  .border-sumi {
+    border-color: var(--sumi);
+  }
+
+  .border-sumi-10 {
+    border-color: var(--sumi-alpha-10);
+  }
+}
+
+/* Tiptap Placeholder Style */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgb(161 161 170 / 0.6);
+  /* Warna sumi-muted transparan */
+  pointer-events: none;
+  height: 0;
+}
+
+/* Hilangin border biru bawaan browser pas lagi ngetik */
+.tiptap:focus {
+  outline: none;
 }
