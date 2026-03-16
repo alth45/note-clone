@@ -1,16 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock, Hash, BookOpen, FileText, Columns, Monitor } from "lucide-react";
+import { ArrowLeft, Clock, Hash, BookOpen, FileText, Columns, Monitor, List } from "lucide-react";
 import ReadingProgress from "@/components/ui/ReadingProgress";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
+import { todo } from "node:test";
 
 type ReadMode = 'default' | 'journal' | 'pdf' | 'zen';
+
+// Tipe data buat Daftar Isi
+
+interface TocItem {
+    id: string;
+    text: string;
+    level: number;
+}
 
 // Terima props 'post' dari Server Component (page.tsx)
 export default function ReadClient({ post }: { post: any }) {
     const [mode, setMode] = useState<ReadMode>('default');
+
+    // --- STATE DAFTAR ISI (TOC) ---
+    const [toc, setToc] = useState<TocItem[]>([]);
+    const [activeId, setActiveId] = useState<string>("");
 
     // --- PENGOLAHAN DATA DATABASE ---
     // 1. Prisma nyimpen konten Tiptap lu dalam bentuk JSON, kita pastiin dia jadi String HTML
@@ -23,7 +36,7 @@ export default function ReadClient({ post }: { post: any }) {
         day: 'numeric', month: 'long', year: 'numeric'
     }).format(new Date(post.updatedAt));
 
-    // 3. Hitung otomatis estimasi waktu baca (Anggap rata-rata orang baca 200 kata per menit)
+    // 3. Hitung otomatis estimasi waktu baca
     const wordCount = htmlContent.replace(/<[^>]*>?/gm, '').split(/\s+/).length;
     const readTime = `${Math.ceil(wordCount / 200)} min read`;
 
@@ -33,10 +46,69 @@ export default function ReadClient({ post }: { post: any }) {
     // (Karena kita belum bikin tabel relasi Tags, kita kasih teks statis elegan dulu)
     const tags = ["Eksplorasi", "Catatan"];
 
+    // --- LOGIKA MATA-MATA (SCANNER DAFTAR ISI) ---
+    useEffect(() => {
+        // Cari ID kontainer artikelnya
+        const article = document.getElementById("article-content");
+        if (!article) return;
+
+        // Ambil semua H2 dan H3 di dalam artikel
+        const headings = Array.from(article.querySelectorAll("h2, h3"));
+
+        const tocData = headings.map((heading, index) => {
+            const text = heading.textContent || "";
+            // Bikin ID dari teks kalau heading-nya belum punya ID
+            const slug = `heading-${index}-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+            if (!heading.id) {
+                heading.id = slug;
+            }
+
+            return {
+                id: heading.id,
+                text: text,
+                level: heading.tagName === "H2" ? 2 : 3
+            };
+        });
+
+        setToc(tocData);
+
+        // --- INTERSECTION OBSERVER BUAT HIGHLIGHT OTOMATIS SAAT SCROLL ---
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    // Kalau judulnya masuk ke area pandang atas layar
+                    if (entry.isIntersecting) {
+                        setActiveId(entry.target.id);
+                    }
+                });
+            },
+            { rootMargin: "0px 0px -80% 0px" } // Offset biar highlight pindah saat judul ada di 20% atas layar
+        );
+
+        headings.forEach((h) => observer.observe(h));
+
+        return () => observer.disconnect();
+    }, [htmlContent]);
+
+    // Fungsi klik daftar isi biar scroll mulus
+    const scrollToHeading = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            // Offset 100px ke atas biar gak mepet banget pas di-scroll
+            const y = element.getBoundingClientRect().top + window.scrollY - 100;
+            window.scrollTo({ top: y, behavior: 'smooth' });
+        }
+    };
+
 
     // --- LOGIKA STYLING BERDASARKAN MODE BACA ---
     let containerStyle = "mx-auto pb-20 transition-all duration-700 ease-in-out ";
-    let proseStyle = "prose max-w-none transition-all duration-700 ease-in-out ";
+
+    // Tambahin CSS buat slide/iframe biar tetep rapi
+    let proseStyle = "prose max-w-none transition-all duration-700 ease-in-out " +
+        "[&_.slide-wrapper]:w-full [&_.slide-wrapper]:aspect-video [&_.slide-wrapper]:my-10 [&_.slide-wrapper]:rounded-2xl [&_.slide-wrapper]:overflow-hidden [&_.slide-wrapper]:shadow-lg [&_.slide-wrapper]:border [&_.slide-wrapper]:border-sumi-10 " +
+        "[&_iframe]:w-full [&_iframe]:h-full [&_iframe]:border-0 [&_iframe]:absolute [&_iframe]:inset-0 ";
 
     switch (mode) {
         case 'default':
@@ -54,17 +126,45 @@ export default function ReadClient({ post }: { post: any }) {
         case 'zen':
             containerStyle += "max-w-2xl bg-sumi p-10 md:p-16 rounded-3xl !text-washi";
             proseStyle += "prose-lg prose-invert prose-p:text-washi/80 prose-h3:text-washi font-sans";
+            proseStyle += " [&_.slide-wrapper]:border-washi/10 [&_.slide-wrapper]:shadow-2xl";
             break;
     }
 
     return (
-        <>
+        <div className="relative">
             <ReadingProgress />
+
+            {/* --- WIDGET DAFTAR ISI (TOC) --- */}
+            {toc.length > 0 && mode !== 'zen' && mode !== 'pdf' && (
+                <div className="hidden xl:block fixed top-32 right-8 xl:right-[max(2rem,calc((100vw-65rem)/2))] w-64 animate-in fade-in slide-in-from-right-8 duration-500 z-30">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-sumi-muted mb-4 flex items-center gap-2">
+                        <List size={14} /> Di Halaman Ini
+                    </h4>
+                    <div className="relative border-l border-sumi-10 pl-4 space-y-3 max-h-[70vh] overflow-y-auto scrollbar-hide">
+                        {toc.map((item) => (
+                            <button
+                                key={item.id}
+                                onClick={() => scrollToHeading(item.id)}
+                                className={`block w-full text-left text-sm transition-all duration-300 relative ${activeId === item.id
+                                    ? "text-sumi font-bold scale-105 origin-left"
+                                    : "text-sumi-muted hover:text-sumi"
+                                    } ${item.level === 3 ? "pl-3 text-[13px]" : ""}`} // Heading 3 agak menjorok ke dalam
+                            >
+                                {/* Titik indikator nyala kalau lagi aktif dibaca */}
+                                {activeId === item.id && (
+                                    <div className="absolute -left-[21px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-sumi shadow-[0_0_8px_rgba(28,28,30,0.5)] transition-all duration-300" />
+                                )}
+                                <span className="line-clamp-2">{item.text}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Floating Action Bar (Disembunyikan saat Zen Mode biar fokus 100%) */}
             {mode !== 'zen' && <FloatingActionBar postId={post.id}
                 initialLikes={post.likesCount}
-                hasLiked={false} // (Opsional: lu bisa cek status like/bookmark user saat ini di server)
+                hasLiked={false}
             />}
 
             {/* Kontainer Utama Artikel */}
@@ -125,13 +225,15 @@ export default function ReadClient({ post }: { post: any }) {
                     </figure>
                 )}
 
-                {/* Body Artikel (Tiptap HTML dari Database) */}
+                {/* --- Body Artikel (Tiptap HTML dari Database) --- */}
+                {/* ID "article-content" ditambahkan di sini buat target scanner useEffect! */}
                 <div
+                    id="article-content"
                     className={proseStyle}
                     dangerouslySetInnerHTML={{ __html: htmlContent }}
                 />
 
             </article>
-        </>
+        </div>
     );
 }

@@ -50,7 +50,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
                 if (url) editor.chain().focus().setImage({ src: url }).run();
             }} className="p-2 rounded-lg text-sumi-muted hover:text-sumi hover:bg-sumi/5 transition-colors" title="Insert Image"><ImageIcon size={16} /></button>
             <div className="w-[1px] h-6 bg-sumi-10 mx-1"></div>
-
             <button
                 onClick={addSlideEmbed}
                 className="p-2 text-sumi-muted hover:text-sumi hover:bg-sumi/10 rounded-md transition-colors"

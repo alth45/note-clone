@@ -6,6 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+
 }
 
 // --- Arsitektur Dasar ala Note.com ---
@@ -20,6 +21,9 @@ model User {
   password      String?   // Cuma keisi kalau dia daftar manual (bukan Google/Github)
   bio           String?
   folders       Folder[] 
+
+  // --- TAMBAHAN BARU BUAT CLI ---
+  cliToken      String?   @unique // Token rahasia buat nge-push file
   
   accounts      Account[]
   sessions      Session[]
