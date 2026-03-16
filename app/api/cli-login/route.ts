@@ -1,32 +1,38 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import crypto from "crypto"; // Bawaan Node.js buat bikin token acak
+import crypto from "crypto";
+import bcrypt from "bcrypt"; // Sesuaikan: kalau lu pake bcryptjs, ganti jadi "bcryptjs"
 
 export async function POST(req: Request) {
     try {
         const { email, password } = await req.json();
 
-        // 1. Cari user berdasarkan email
+        // 1. Cari user
         const user = await prisma.user.findUnique({
             where: { email: email }
         });
 
-        // 2. Cek apakah user ada dan password-nya cocok sama yang di Database
-        // (Catatan: Kalau buat production beneran, password ini harus di-hash pakai bcrypt ya bro)
-        if (!user || user.password !== password) {
+        // Kalau user gak ketemu atau dia gak punya password (misal login via Google)
+        if (!user || !user.password) {
             return NextResponse.json({ message: "Email atau Password terminal salah!" }, { status: 401 });
         }
 
-        // 3. Bikin Token Unik (Personal Access Token) buat user ini
+        // 2. --- FITUR BARU: COMPARE HASH ---
+        // Kita suruh bcrypt ngebandingin teks mentah dari terminal sama hash di database
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return NextResponse.json({ message: "Email atau Password terminal salah!" }, { status: 401 });
+        }
+
+        // 3. Kalau cocok, bikinin token baru
         const newToken = crypto.randomUUID();
 
-        // 4. Simpan token itu ke database user
         await prisma.user.update({
             where: { id: user.id },
             data: { cliToken: newToken }
         });
 
-        // 5. Kirim tokennya ke CLI Terminal mereka
         return NextResponse.json({
             message: "Login Berhasil",
             token: newToken,
@@ -34,6 +40,7 @@ export async function POST(req: Request) {
         }, { status: 200 });
 
     } catch (error) {
+        console.error("CLI Login Error:", error);
         return NextResponse.json({ message: "Terjadi kesalahan server." }, { status: 500 });
     }
 }
