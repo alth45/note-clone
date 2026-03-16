@@ -15,6 +15,8 @@ const dynamicCategories = [
   { name: "Sains", active: false },
   { name: "Otomotif", active: false },
 ];
+// app/page.tsx
+export const dynamic = 'force-dynamic'
 
 export default async function Home() {
   // 1. Tarik artikel yang SUDAH PUBLISH dari PostgreSQL
