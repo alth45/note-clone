@@ -21,6 +21,18 @@ export async function GET(req: Request) {
         }
 
         // 3. Ambil semua artikel milik user ini, urutkan dari yang terbaru
+        // const posts = await prisma.post.findMany({
+        //     where: { authorId: user.id },
+        //     orderBy: { updatedAt: 'desc' },
+        //     select: {
+        //         id: true,
+        //         title: true,
+        //         slug: true,
+        //         published: true,
+        //         updatedAt: true
+        //     }
+        // });
+        // 3. Ambil semua artikel beserta nama foldernya
         const posts = await prisma.post.findMany({
             where: { authorId: user.id },
             orderBy: { updatedAt: 'desc' },
@@ -29,7 +41,11 @@ export async function GET(req: Request) {
                 title: true,
                 slug: true,
                 published: true,
-                updatedAt: true
+                updatedAt: true,
+                // --- TAMBAHAN BARU: Ambil relasi folder ---
+                folder: {
+                    select: { name: true }
+                }
             }
         });
 
