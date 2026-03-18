@@ -8,6 +8,7 @@ import { getCommandMatch, SYSTEM_COMMANDS } from "@/lib/commandEngine";
 import QuickEditorModal from "./QuickEditorModal";
 import { useDialog } from "@/context/DialogContext";
 import TerminalResultModal from "./TerminalResultModal";
+import log from 'loglevel';
 
 type PostData = {
     id: string;
@@ -50,7 +51,11 @@ export default function CommandPalette() {
         if (isOpen && dbPosts.length === 0) {
             const cachedData = sessionStorage.getItem("note_posts_cache");
             if (cachedData) {
-                setDbPosts(JSON.parse(cachedData));
+                try {
+                    setDbPosts(JSON.parse(cachedData));
+                } catch (error) {
+                    log.error(`Error ${error} Kemungkinan json gagal parsing`);
+                }
             } else {
                 setIsLoadingPosts(true);
             }
