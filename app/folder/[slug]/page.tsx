@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Layers, Folder as FolderIcon } from "lucide-react";
 import prisma from "@/lib/prisma";
-import PostCard from "@/components/ui/PostCard"; // Sesuaikan path komponen lu
+import PostCard from "@/components/ui/PostCard";
 
 // --- MESIN WARNA BIAR SAMA KAYAK DI BERANDA ---
 function getReadableColorStyles(slug: string) {
@@ -20,18 +20,27 @@ function getReadableColorStyles(slug: string) {
 
 export const revalidate = 0;
 
-// PERUBAHAN 1: Kita tangkap parameternya sebagai 'slug'
-export default async function FolderPage({ params }: { params: { slug: string } }) {
+// Pakai tipe 'any' sementara biar TypeScript lu gak rewel kalau lu ganti versi Next.js
+export default async function FolderPage({ params }: any) {
 
-    // PERUBAHAN 2: Destructure params dengan aman (Biar Next.js versi baru gak ngamuk)
-    // Walaupun namanya 'slug' di URL, isinya sebenernya adalah ID folder lu yang dikirim dari Home
-    const folderId = params.slug;
+    // --- KUNCI JAWABANNYA DI SINI BRO! ---
+    // 1. Kita 'await' params-nya karena Next.js terbaru mewajibkan ini
+    const resolvedParams = await params;
+
+    // 2. Kita ambil 'id' atau 'slug' (tergantung lu namain foldernya apa di VS Code)
+    const folderId = resolvedParams.id || resolvedParams.slug;
+
+    // Kalau beneran kosong dari URL-nya, langsung lempar ke 404
+    if (!folderId) {
+        console.error("Parameter ID/Slug tidak ditemukan dari URL!");
+        notFound();
+    }
 
     try {
-        // 1. Tarik data folder beserta isi artikelnya yang udah LIVE
+        // Tarik data folder dari database
         const folder = await prisma.folder.findUnique({
             where: {
-                id: folderId // <-- Kalau database lu ID-nya pakai Angka (Int), ubah jadi: id: parseInt(folderId)
+                id: folderId
             },
             include: {
                 posts: {
@@ -118,7 +127,6 @@ export default async function FolderPage({ params }: { params: { slug: string } 
             </main>
         );
     } catch (error) {
-        // Kalau terjadi error di server/database, lempar aja ke 404 biar halamannya gak hancur
         console.error("Gagal memuat halaman folder:", error);
         notFound();
     }
