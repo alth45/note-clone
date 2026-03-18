@@ -122,7 +122,7 @@ export default function PostCard({
 
             {/* --- BANNER SOLID COLOR ARTIKEL --- */}
             <Link
-                href={`/read/${slug}`}
+                href={`/post/${slug}`}
                 className="block w-full h-48 relative overflow-hidden group-hover:opacity-90 transition-opacity duration-300"
                 style={{ backgroundColor: colorStyles.bg }}
             >
