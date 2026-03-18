@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Clock, Hash, BookOpen, FileText, Columns, Monitor, List } from "lucide-react";
+import { ArrowLeft, Clock, Hash, BookOpen, FileText, Columns, Monitor, List, ChevronRight, ChevronLeft } from "lucide-react";
 import ReadingProgress from "@/components/ui/ReadingProgress";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
 
@@ -24,6 +24,9 @@ export default function ReadClient({ post }: { post: any }) {
     const [toc, setToc] = useState<TocItem[]>([]);
     const [activeId, setActiveId] = useState<string>("");
 
+    // --- FITUR BARU: STATE BUKA/TUTUP DAFTAR ISI ---
+    const [isTocOpen, setIsTocOpen] = useState(true);
+
     // --- PENGOLAHAN DATA DATABASE ---
     const htmlContent = typeof post.content === 'string'
         ? post.content
@@ -36,7 +39,6 @@ export default function ReadClient({ post }: { post: any }) {
     const wordCount = htmlContent.replace(/<[^>]*>?/gm, '').split(/\s+/).length;
     const readTime = `${Math.ceil(wordCount / 200)} min read`;
 
-    const coverImage = post.coverImage || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1200&auto=format&fit=crop";
     const tags = ["Eksplorasi", "Catatan"];
 
     // --- LOGIKA MATA-MATA (SCANNER DAFTAR ISI) ---
@@ -86,27 +88,27 @@ export default function ReadClient({ post }: { post: any }) {
         }
     };
 
-    // --- LOGIKA STYLING BERDASARKAN MODE BACA ---
-    let containerStyle = "mx-auto pb-20 transition-all duration-700 ease-in-out ";
+    // --- LOGIKA STYLING BERDASARKAN MODE BACA (DIPERLEBAR) ---
+    let containerStyle = "mx-auto pb-20 px-6 transition-all duration-700 ease-in-out w-full ";
     let proseStyle = "prose max-w-none transition-all duration-700 ease-in-out " +
         "[&_.slide-wrapper]:w-full [&_.slide-wrapper]:aspect-video [&_.slide-wrapper]:my-10 [&_.slide-wrapper]:rounded-2xl [&_.slide-wrapper]:overflow-hidden [&_.slide-wrapper]:shadow-lg [&_.slide-wrapper]:border [&_.slide-wrapper]:border-sumi-10 " +
         "[&_iframe]:w-full [&_iframe]:h-full [&_iframe]:border-0 [&_iframe]:absolute [&_iframe]:inset-0 ";
 
     switch (mode) {
         case 'default':
-            containerStyle += "max-w-3xl";
+            containerStyle += "max-w-5xl"; // LEBIH LEBAR DARI SEBELUMNYA
             proseStyle += "prose-lg prose-sumi prose-p:text-sumi-light prose-p:leading-relaxed font-sans";
             break;
         case 'journal':
-            containerStyle += "max-w-4xl bg-[#F8F5F0] p-10 md:p-16 shadow-[0_0_40px_rgba(0,0,0,0.05)] border-t-[12px] border-sumi rounded-b-xl";
+            containerStyle += "max-w-6xl bg-[#F8F5F0] p-10 md:p-16 shadow-[0_0_40px_rgba(0,0,0,0.05)] border-t-[12px] border-sumi rounded-b-xl";
             proseStyle += "prose-xl prose-sumi font-serif prose-p:text-sumi prose-p:leading-loose prose-p:text-justify prose-blockquote:border-sumi/20";
             break;
         case 'pdf':
-            containerStyle += "max-w-6xl";
+            containerStyle += "max-w-[90rem]"; // FULL LEBAR DUA KOLOM
             proseStyle += "prose-base prose-sumi md:columns-2 md:gap-16 prose-p:break-inside-avoid-column prose-h3:break-after-avoid-column prose-img:break-inside-avoid-column font-sans prose-p:text-justify";
             break;
         case 'zen':
-            containerStyle += "max-w-2xl bg-sumi p-10 md:p-16 rounded-3xl !text-washi";
+            containerStyle += "max-w-4xl bg-sumi p-10 md:p-16 rounded-3xl !text-washi";
             proseStyle += "prose-lg prose-invert prose-p:text-washi/80 prose-h3:text-washi font-sans";
             proseStyle += " [&_.slide-wrapper]:border-washi/10 [&_.slide-wrapper]:shadow-2xl";
             break;
@@ -152,24 +154,24 @@ export default function ReadClient({ post }: { post: any }) {
                 );
             }
 
-            // 3. RENDER TABEL MODERN
+            // 3. RENDER TABEL MODERN (DENGAN GARIS ABU-ABU)
             if (domNode.name === 'table') {
                 return (
-                    <div className="overflow-x-auto my-8 border border-gray-200/50 rounded-xl shadow-sm break-inside-avoid-column">
-                        <table className="min-w-full divide-y divide-gray-200/50 text-sm">
+                    <div className="overflow-x-auto my-8 rounded-xl shadow-sm break-inside-avoid-column">
+                        <table className="min-w-full divide-y divide-gray-300 text-sm border-collapse border border-gray-300">
                             {domToReact(domNode.children, renderOptions)}
                         </table>
                     </div>
                 );
             }
             if (domNode.name === 'thead') {
-                return <thead className="bg-gray-50/50">{domToReact(domNode.children, renderOptions)}</thead>;
+                return <thead className="bg-gray-100">{domToReact(domNode.children, renderOptions)}</thead>;
             }
             if (domNode.name === 'th') {
-                return <th className="px-6 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200/50">{domToReact(domNode.children, renderOptions)}</th>;
+                return <th className="px-6 py-4 text-left font-bold text-gray-800 uppercase tracking-wider border border-gray-300">{domToReact(domNode.children, renderOptions)}</th>;
             }
             if (domNode.name === 'td') {
-                return <td className="px-6 py-4 whitespace-nowrap text-gray-600 border-b border-gray-100/50">{domToReact(domNode.children, renderOptions)}</td>;
+                return <td className="px-6 py-4 whitespace-nowrap text-gray-700 border border-gray-300">{domToReact(domNode.children, renderOptions)}</td>;
             }
         }
     };
@@ -178,29 +180,46 @@ export default function ReadClient({ post }: { post: any }) {
         <div className="relative">
             <ReadingProgress />
 
-            {/* --- WIDGET DAFTAR ISI (TOC) --- */}
+            {/* --- WIDGET DAFTAR ISI (TOC) BISA DI-TOGGLE --- */}
             {toc.length > 0 && mode !== 'zen' && mode !== 'pdf' && (
-                <div className="hidden xl:block fixed top-32 right-8 xl:right-[max(2rem,calc((100vw-65rem)/2))] w-64 animate-in fade-in slide-in-from-right-8 duration-500 z-30">
-                    <h4 className="text-xs font-bold uppercase tracking-widest text-sumi-muted mb-4 flex items-center gap-2">
-                        <List size={14} /> Di Halaman Ini
-                    </h4>
-                    <div className="relative border-l border-sumi-10 pl-4 space-y-3 max-h-[70vh] overflow-y-auto scrollbar-hide">
-                        {toc.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => scrollToHeading(item.id)}
-                                className={`block w-full text-left text-sm transition-all duration-300 relative ${activeId === item.id
-                                    ? "text-sumi font-bold scale-105 origin-left"
-                                    : "text-sumi-muted hover:text-sumi"
-                                    } ${item.level === 3 ? "pl-3 text-[13px]" : ""}`}
-                            >
-                                {activeId === item.id && (
-                                    <div className="absolute -left-[21px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-sumi shadow-[0_0_8px_rgba(28,28,30,0.5)] transition-all duration-300" />
-                                )}
-                                <span className="line-clamp-2">{item.text}</span>
-                            </button>
-                        ))}
+                <div className={`hidden xl:flex flex-col fixed top-32 right-8 transition-all duration-500 z-30 ${isTocOpen ? 'w-64' : 'w-12 items-end'}`}>
+
+                    {/* Header TOC & Tombol Toggle */}
+                    <div className="flex items-center justify-between w-full mb-4">
+                        {isTocOpen && (
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-sumi-muted flex items-center gap-2 whitespace-nowrap">
+                                <List size={14} /> Di Halaman Ini
+                            </h4>
+                        )}
+                        <button
+                            onClick={() => setIsTocOpen(!isTocOpen)}
+                            className="p-1.5 rounded-md hover:bg-sumi-10 text-sumi-muted hover:text-sumi transition-all border border-transparent hover:border-sumi-10 shadow-sm bg-washi-dark/50"
+                            title={isTocOpen ? "Sembunyikan Daftar Isi" : "Tampilkan Daftar Isi"}
+                        >
+                            {isTocOpen ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                        </button>
                     </div>
+
+                    {/* List TOC yang Muncul/Hilang */}
+                    {isTocOpen && (
+                        <div className="relative border-l border-sumi-10 pl-4 space-y-3 max-h-[70vh] overflow-y-auto scrollbar-hide animate-in fade-in duration-300 w-full">
+                            {toc.map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => scrollToHeading(item.id)}
+                                    className={`block w-full text-left text-sm transition-all duration-300 relative ${activeId === item.id
+                                        ? "text-sumi font-bold scale-105 origin-left"
+                                        : "text-sumi-muted hover:text-sumi"
+                                        } ${item.level === 3 ? "pl-3 text-[13px]" : ""}`}
+                                >
+                                    {activeId === item.id && (
+                                        <div className="absolute -left-[21px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-sumi shadow-[0_0_8px_rgba(28,28,30,0.5)] transition-all duration-300" />
+                                    )}
+                                    <span className="line-clamp-2">{item.text}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -212,6 +231,7 @@ export default function ReadClient({ post }: { post: any }) {
 
             {/* Kontainer Utama Artikel */}
             <article className={containerStyle}>
+
                 {/* Navigasi Atas & Panel Mode Baca */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 pt-4">
                     <Link href="/" className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${mode === 'zen' ? 'text-washi/50 hover:text-washi' : 'text-sumi-muted hover:text-sumi'}`}>
@@ -226,8 +246,9 @@ export default function ReadClient({ post }: { post: any }) {
                     </div>
                 </div>
 
-                {/* Header Artikel */}
-                <header className="mb-10">
+                {/* --- HEADER ARTIKEL DENGAN COVER SOLID COLOR --- */}
+                <header className="mb-12">
+                    {/* Info Penulis & Tanggal */}
                     <div className={`flex items-center gap-2 text-sm mb-6 ${mode === 'zen' ? 'text-washi/60' : 'text-sumi-muted'}`}>
                         <span className={`font-semibold ${mode === 'zen' ? 'text-washi' : 'text-sumi'}`}>{post.author?.name || "Penulis Misterius"}</span>
                         <span>•</span>
@@ -236,11 +257,22 @@ export default function ReadClient({ post }: { post: any }) {
                         <span className="flex items-center gap-1"><Clock size={14} /> {readTime}</span>
                     </div>
 
-                    <h1 className={`text-3xl md:text-5xl font-bold leading-[1.2] mb-6 tracking-tight ${mode === 'zen' ? 'text-washi' : 'text-sumi'}`}>
-                        {post.title}
-                    </h1>
+                    {/* COVER BANNER SOLID COLOR DENGAN JUDUL */}
+                    <div className={`w-full flex flex-col items-center justify-center p-10 md:p-20 text-center relative overflow-hidden
+                        ${mode === 'journal' ? 'rounded-none border border-sumi/20 aspect-[21/9]' : 'rounded-3xl shadow-xl aspect-[21/9]'}
+                        ${mode === 'zen' ? 'bg-sumi-light border border-washi/10' : 'bg-gradient-to-br from-sumi to-sumi-light text-washi'}
+                    `}>
+                        <h1 className={`text-4xl md:text-6xl lg:text-7xl font-extrabold leading-tight tracking-tight drop-shadow-md z-10 max-w-4xl 
+                            ${mode === 'zen' ? 'text-washi' : 'text-washi'}`}>
+                            {post.title}
+                        </h1>
 
-                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Hiasan Pola Estetik Tipis di Background */}
+                        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-washi to-transparent mix-blend-overlay"></div>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex items-center gap-2 flex-wrap mt-8">
                         {tags.map((tag, index) => (
                             <span
                                 key={index}
@@ -253,23 +285,11 @@ export default function ReadClient({ post }: { post: any }) {
                     </div>
                 </header>
 
-                {/* Cover Image */}
-                {mode !== 'zen' && (
-                    <figure className={`mb-12 overflow-hidden border ${mode === 'journal' ? 'border-sumi/20 rounded-none shadow-sm' : 'border-sumi-10 rounded-2xl bg-washi-dark'}`}>
-                        <img
-                            src={coverImage}
-                            alt={post.title}
-                            className="w-full h-auto max-h-[500px] object-cover"
-                        />
-                    </figure>
-                )}
-
                 {/* --- Body Artikel (Di-render pakai Parser) --- */}
                 <div
                     id="article-content"
                     className={proseStyle}
                 >
-                    {/* eksekutor pencegat HTML ada di baris ini */}
                     {parse(htmlContent, renderOptions)}
                 </div>
 
