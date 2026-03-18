@@ -5,11 +5,13 @@ import Link from "next/link";
 import { ArrowLeft, Clock, Hash, BookOpen, FileText, Columns, Monitor, List } from "lucide-react";
 import ReadingProgress from "@/components/ui/ReadingProgress";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
-import { todo } from "node:test";
+
+// --- IMPORT RENDERER ENGINE ---
+import parse, { domToReact, HTMLReactParserOptions } from 'html-react-parser';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 type ReadMode = 'default' | 'journal' | 'pdf' | 'zen';
-
-// Tipe data buat Daftar Isi
 
 interface TocItem {
     id: string;
@@ -17,47 +19,35 @@ interface TocItem {
     level: number;
 }
 
-// Terima props 'post' dari Server Component (page.tsx)
 export default function ReadClient({ post }: { post: any }) {
     const [mode, setMode] = useState<ReadMode>('default');
-
-    // --- STATE DAFTAR ISI (TOC) ---
     const [toc, setToc] = useState<TocItem[]>([]);
     const [activeId, setActiveId] = useState<string>("");
 
     // --- PENGOLAHAN DATA DATABASE ---
-    // 1. Prisma nyimpen konten Tiptap lu dalam bentuk JSON, kita pastiin dia jadi String HTML
     const htmlContent = typeof post.content === 'string'
         ? post.content
         : (post.content?.html || "");
 
-    // 2. Format Tanggal otomatis
     const formattedDate = new Intl.DateTimeFormat('id-ID', {
         day: 'numeric', month: 'long', year: 'numeric'
     }).format(new Date(post.updatedAt));
 
-    // 3. Hitung otomatis estimasi waktu baca
     const wordCount = htmlContent.replace(/<[^>]*>?/gm, '').split(/\s+/).length;
     const readTime = `${Math.ceil(wordCount / 200)} min read`;
 
-    // 4. Fallback Cover Image
     const coverImage = post.coverImage || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=1200&auto=format&fit=crop";
-
-    // (Karena kita belum bikin tabel relasi Tags, kita kasih teks statis elegan dulu)
     const tags = ["Eksplorasi", "Catatan"];
 
     // --- LOGIKA MATA-MATA (SCANNER DAFTAR ISI) ---
     useEffect(() => {
-        // Cari ID kontainer artikelnya
         const article = document.getElementById("article-content");
         if (!article) return;
 
-        // Ambil semua H2 dan H3 di dalam artikel
         const headings = Array.from(article.querySelectorAll("h2, h3"));
 
         const tocData = headings.map((heading, index) => {
             const text = heading.textContent || "";
-            // Bikin ID dari teks kalau heading-nya belum punya ID
             const slug = `heading-${index}-${text.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
             if (!heading.id) {
@@ -73,39 +63,31 @@ export default function ReadClient({ post }: { post: any }) {
 
         setToc(tocData);
 
-        // --- INTERSECTION OBSERVER BUAT HIGHLIGHT OTOMATIS SAAT SCROLL ---
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
-                    // Kalau judulnya masuk ke area pandang atas layar
                     if (entry.isIntersecting) {
                         setActiveId(entry.target.id);
                     }
                 });
             },
-            { rootMargin: "0px 0px -80% 0px" } // Offset biar highlight pindah saat judul ada di 20% atas layar
+            { rootMargin: "0px 0px -80% 0px" }
         );
 
         headings.forEach((h) => observer.observe(h));
-
         return () => observer.disconnect();
     }, [htmlContent]);
 
-    // Fungsi klik daftar isi biar scroll mulus
     const scrollToHeading = (id: string) => {
         const element = document.getElementById(id);
         if (element) {
-            // Offset 100px ke atas biar gak mepet banget pas di-scroll
             const y = element.getBoundingClientRect().top + window.scrollY - 100;
             window.scrollTo({ top: y, behavior: 'smooth' });
         }
     };
 
-
     // --- LOGIKA STYLING BERDASARKAN MODE BACA ---
     let containerStyle = "mx-auto pb-20 transition-all duration-700 ease-in-out ";
-
-    // Tambahin CSS buat slide/iframe biar tetep rapi
     let proseStyle = "prose max-w-none transition-all duration-700 ease-in-out " +
         "[&_.slide-wrapper]:w-full [&_.slide-wrapper]:aspect-video [&_.slide-wrapper]:my-10 [&_.slide-wrapper]:rounded-2xl [&_.slide-wrapper]:overflow-hidden [&_.slide-wrapper]:shadow-lg [&_.slide-wrapper]:border [&_.slide-wrapper]:border-sumi-10 " +
         "[&_iframe]:w-full [&_iframe]:h-full [&_iframe]:border-0 [&_iframe]:absolute [&_iframe]:inset-0 ";
@@ -130,6 +112,68 @@ export default function ReadClient({ post }: { post: any }) {
             break;
     }
 
+    // --- MESIN PENCEGAT HTML (INTERCEPTOR) ---
+    const renderOptions: HTMLReactParserOptions = {
+        replace: (domNode: any) => {
+            // 1. RENDER KODE BLOK (CANVAS)
+            if (domNode.name === 'pre' && domNode.children[0]?.name === 'code') {
+                const codeNode = domNode.children[0];
+                const codeString = codeNode.children[0]?.data || '';
+
+                const className = codeNode.attribs?.class || '';
+                const match = /language-(\w+)/.exec(className);
+                const lang = match ? match[1] : 'javascript';
+
+                return (
+                    <div className="my-8 rounded-xl overflow-hidden shadow-2xl border border-gray-700/50 break-inside-avoid-column">
+                        <div className="bg-[#1e1e1e] border-b border-gray-800 px-4 py-2 flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span className="ml-2 text-xs text-gray-400 font-mono tracking-wider">{lang.toUpperCase()}</span>
+                        </div>
+                        <SyntaxHighlighter
+                            language={lang}
+                            style={vscDarkPlus}
+                            customStyle={{ margin: 0, padding: '1.5rem', background: '#1e1e1e', fontSize: '0.9rem' }}
+                        >
+                            {codeString.trim()}
+                        </SyntaxHighlighter>
+                    </div>
+                );
+            }
+
+            // 2. RENDER KODE INLINE / MATEMATIKA (BADGE TRANSLUCENT)
+            if (domNode.name === 'code') {
+                return (
+                    <code className="bg-orange-500/10 text-orange-600 border border-orange-500/20 px-1.5 py-0.5 rounded-md text-[0.85em] font-mono mx-1 shadow-sm break-words">
+                        {domToReact(domNode.children, renderOptions)}
+                    </code>
+                );
+            }
+
+            // 3. RENDER TABEL MODERN
+            if (domNode.name === 'table') {
+                return (
+                    <div className="overflow-x-auto my-8 border border-gray-200/50 rounded-xl shadow-sm break-inside-avoid-column">
+                        <table className="min-w-full divide-y divide-gray-200/50 text-sm">
+                            {domToReact(domNode.children, renderOptions)}
+                        </table>
+                    </div>
+                );
+            }
+            if (domNode.name === 'thead') {
+                return <thead className="bg-gray-50/50">{domToReact(domNode.children, renderOptions)}</thead>;
+            }
+            if (domNode.name === 'th') {
+                return <th className="px-6 py-3 text-left font-semibold text-gray-700 uppercase tracking-wider border-b border-gray-200/50">{domToReact(domNode.children, renderOptions)}</th>;
+            }
+            if (domNode.name === 'td') {
+                return <td className="px-6 py-4 whitespace-nowrap text-gray-600 border-b border-gray-100/50">{domToReact(domNode.children, renderOptions)}</td>;
+            }
+        }
+    };
+
     return (
         <div className="relative">
             <ReadingProgress />
@@ -148,9 +192,8 @@ export default function ReadClient({ post }: { post: any }) {
                                 className={`block w-full text-left text-sm transition-all duration-300 relative ${activeId === item.id
                                     ? "text-sumi font-bold scale-105 origin-left"
                                     : "text-sumi-muted hover:text-sumi"
-                                    } ${item.level === 3 ? "pl-3 text-[13px]" : ""}`} // Heading 3 agak menjorok ke dalam
+                                    } ${item.level === 3 ? "pl-3 text-[13px]" : ""}`}
                             >
-                                {/* Titik indikator nyala kalau lagi aktif dibaca */}
                                 {activeId === item.id && (
                                     <div className="absolute -left-[21px] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-sumi shadow-[0_0_8px_rgba(28,28,30,0.5)] transition-all duration-300" />
                                 )}
@@ -161,7 +204,7 @@ export default function ReadClient({ post }: { post: any }) {
                 </div>
             )}
 
-            {/* Floating Action Bar (Disembunyikan saat Zen Mode biar fokus 100%) */}
+            {/* Floating Action Bar */}
             {mode !== 'zen' && <FloatingActionBar postId={post.id}
                 initialLikes={post.likesCount}
                 hasLiked={false}
@@ -169,22 +212,18 @@ export default function ReadClient({ post }: { post: any }) {
 
             {/* Kontainer Utama Artikel */}
             <article className={containerStyle}>
-
                 {/* Navigasi Atas & Panel Mode Baca */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 pt-4">
-
                     <Link href="/" className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${mode === 'zen' ? 'text-washi/50 hover:text-washi' : 'text-sumi-muted hover:text-sumi'}`}>
                         <ArrowLeft size={16} /> Kembali
                     </Link>
 
-                    {/* --- PANEL PENGATUR MODE BACA --- */}
                     <div className={`flex items-center gap-1 p-1 rounded-full border backdrop-blur-md ${mode === 'zen' ? 'border-washi/10 bg-sumi-light/50' : 'border-sumi-10 bg-washi/80'}`}>
                         <button onClick={() => setMode('default')} title="Mode Standar" className={`p-2 rounded-full transition-all ${mode === 'default' ? 'bg-sumi text-washi shadow-md' : (mode === 'zen' ? 'text-washi/50 hover:text-washi' : 'text-sumi-muted hover:text-sumi hover:bg-sumi/5')}`}><Monitor size={16} /></button>
                         <button onClick={() => setMode('journal')} title="Mode Jurnal Klasik" className={`p-2 rounded-full transition-all ${mode === 'journal' ? 'bg-sumi text-washi shadow-md' : (mode === 'zen' ? 'text-washi/50 hover:text-washi' : 'text-sumi-muted hover:text-sumi hover:bg-sumi/5')}`}><FileText size={16} /></button>
                         <button onClick={() => setMode('pdf')} title="Mode PDF (2 Kolom)" className={`p-2 rounded-full transition-all ${mode === 'pdf' ? 'bg-sumi text-washi shadow-md' : (mode === 'zen' ? 'text-washi/50 hover:text-washi' : 'text-sumi-muted hover:text-sumi hover:bg-sumi/5')}`}><Columns size={16} /></button>
                         <button onClick={() => setMode('zen')} title="Zen Mode (Fokus Malam)" className={`p-2 rounded-full transition-all ${mode === 'zen' ? 'bg-washi text-sumi shadow-md' : 'text-sumi-muted hover:text-sumi hover:bg-sumi/5'}`}><BookOpen size={16} /></button>
                     </div>
-
                 </div>
 
                 {/* Header Artikel */}
@@ -225,13 +264,14 @@ export default function ReadClient({ post }: { post: any }) {
                     </figure>
                 )}
 
-                {/* --- Body Artikel (Tiptap HTML dari Database) --- */}
-                {/* ID "article-content" ditambahkan di sini buat target scanner useEffect! */}
+                {/* --- Body Artikel (Di-render pakai Parser) --- */}
                 <div
                     id="article-content"
                     className={proseStyle}
-                    dangerouslySetInnerHTML={{ __html: htmlContent }}
-                />
+                >
+                    {/* eksekutor pencegat HTML ada di baris ini */}
+                    {parse(htmlContent, renderOptions)}
+                </div>
 
             </article>
         </div>

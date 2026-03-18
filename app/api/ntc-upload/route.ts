@@ -1,61 +1,93 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// --- THE FAST PARSER ENGINE V2 (.ntc ke HTML) ---
+// --- THE FAST PARSER ENGINE V3 (Support Canvas Code & Table) ---
 function parseNtcToHtml(rawText: string) {
-    // 0. NORMALISASI: Ubah Windows CRLF (\r\n) jadi LF (\n) biar mesin gak bingung
+    // 0. NORMALISASI: Ubah Windows CRLF (\r\n) jadi LF (\n)
     let html = rawText.replace(/\r\n/g, '\n');
+
+    // --- FITUR BARU 1: Parsing Blok KODE (Canvas Visual) ---
+    // WAJIB ditaruh paling atas biar teks di dalem kode nggak ikut kena bold/italic
+    html = html.replace(/```([a-zA-Z0-9]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+        const className = lang ? `language-${lang.trim()}` : 'language-text';
+        // Ubah < dan > jadi simbol HTML biar tag di dalem kode gak ngerusak layout
+        const escapedCode = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `\n<pre><code class="${className}">${escapedCode}</code></pre>\n`;
+    });
+
+    // --- FITUR BARU 2: Parsing Kode Inline / Matematika ---
+    html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
 
     // 1. Parsing Blok SLIDE (Smart Converter Google Slides)
     html = html.replace(/:::SLIDE\s*\n([\s\S]*?)\n:::/g, (_, content) => {
         let url = content.trim();
-
-        // --- SMART CONVERTER GOOGLE SLIDES ---
-        if (url.includes("docs.google.com/presentation/d/")) {
-            // Paksa ganti jadi murni /embed (TANPA rm=minimal) 
-            // Biar Control Bar (Prev/Next/Fullscreen) bawaan Google tetap muncul di bawah
+        if (url.includes("[docs.google.com/presentation/d/](https://docs.google.com/presentation/d/)")) {
             url = url.replace(/\/edit.*|\/view.*/, '/embed?start=false&loop=false&delayms=3000');
         }
-
         return `\n<div class="slide-wrapper relative w-full aspect-video rounded-xl overflow-hidden border border-sumi-10 shadow-sm my-8 bg-washi-dark"><iframe src="${url}" data-slide-embed="true" width="100%" height="100%" frameborder="0" allowfullscreen="true" class="absolute inset-0 w-full h-full"></iframe></div>\n`;
     });
 
-    // 2. Parsing Blok IMAGE (Lebih pinter, gak wajib pake kata "CAPTION:")
+    // 2. Parsing Blok IMAGE
     html = html.replace(/:::IMAGE\s*\n([\s\S]*?)\n:::/g, (_, content) => {
-        // Belah isi blok berdasarkan enter
         const lines = content.trim().split('\n');
-        const url = lines[0].trim(); // Baris pertama pasti URL
-
-        // Baris kedua dan seterusnya digabung jadi caption (buang kata CAPTION: kalau lu iseng nulis)
+        const url = lines[0].trim();
         const caption = lines.slice(1).join(' ').replace(/^CAPTION:\s*/i, '').trim();
-
         const figcaption = caption ? `<figcaption class="text-center text-xs text-sumi-muted p-3 border-t border-sumi-10 bg-washi">${caption}</figcaption>` : '';
-
         return `\n<figure class="my-8 rounded-2xl overflow-hidden border border-sumi-10 bg-washi-dark"><img src="${url}" alt="${caption || 'Gambar Artikel'}" class="w-full h-auto object-cover" />${figcaption}</figure>\n`;
+    });
+
+    // --- FITUR BARU 3: Parsing TABEL Markdown ---
+    html = html.replace(/(?:^\|.*\|\n?)+/gm, (match) => {
+        const lines = match.trim().split('\n');
+        if (lines.length < 2) return match; // Kalau cuma sebaris, batalin
+
+        let tableHtml = '<table>\n';
+        lines.forEach((line, index) => {
+            // Potong berdasarkan garis |
+            const cells = line.split('|').map(c => c.trim()).slice(1, -1);
+            if (cells.length === 0) return;
+
+            // Lewati baris separator markdown (misal: |---|---|)
+            if (index === 1 && cells.every(c => /^[-:]+$/.test(c))) return;
+
+            if (index === 0) { // Render Header (TH)
+                tableHtml += '  <thead>\n    <tr>\n';
+                cells.forEach(c => tableHtml += `      <th>${c}</th>\n`);
+                tableHtml += '    </tr>\n  </thead>\n  <tbody>\n';
+            } else { // Render Body (TD)
+                tableHtml += '    <tr>\n';
+                cells.forEach(c => tableHtml += `      <td>${c}</td>\n`);
+                tableHtml += '    </tr>\n';
+            }
+        });
+        tableHtml += '  </tbody>\n</table>\n';
+        return tableHtml;
     });
 
     // 3. Konversi Syntax Markdown Dasar
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
     html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
     html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-
-    // Perbaikan Bold & Italic biar lebih presisi
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
     // 4. Smart Paragraph Wrapper (Tahan Banting)
-    // Belah teks berdasarkan 2 enter ATAU LEBIH (\n{2,})
     const blocks = html.split(/\n{2,}/);
     const parsedBlocks = blocks.map(block => {
         const trimmed = block.trim();
         if (!trimmed) return '';
 
-        // Kalau blok ini udah berupa tag HTML raksasa, biarin aja
-        if (trimmed.startsWith('<h') || trimmed.startsWith('<div') || trimmed.startsWith('<figure')) {
+        // --- UPDATE PENTING: Jangan bungkus tabel dan pre code pakai tag <p> ---
+        if (
+            trimmed.startsWith('<h') ||
+            trimmed.startsWith('<div') ||
+            trimmed.startsWith('<figure') ||
+            trimmed.startsWith('<table') ||  // <--- Tambahan Biar Tabel Aman
+            trimmed.startsWith('<pre')       // <--- Tambahan Biar Canvas Code Aman
+        ) {
             return trimmed;
         }
 
-        // Kalau teks biasa (dan mungkin ada enter tunggal di dalamnya), ubah enter tunggal jadi <br/>
         const textWithBreaks = trimmed.replace(/\n/g, '<br/>');
         return `<p>${textWithBreaks}</p>`;
     });

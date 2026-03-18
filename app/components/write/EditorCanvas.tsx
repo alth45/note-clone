@@ -1,21 +1,28 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { CheckCircle2, Play, Bold, Italic, Heading2, Quote, Code, List, ListOrdered, Image as ImageIcon, Braces, Loader2, CloudIcon, Check } from "lucide-react";
+import { CheckCircle2, Play, Bold, Italic, Heading2, Quote, Code, List, ListOrdered, Image as ImageIcon, Braces, Loader2, CloudIcon, Check, Presentation } from "lucide-react";
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
+
+// --- IMPORT "OTAK TAMBAHAN" TIPTAP (TABLE & CODE) ---
+import { Table } from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableHeader from '@tiptap/extension-table-header';
+import TableCell from '@tiptap/extension-table-cell';
+import CodeBlock from '@tiptap/extension-code-block';
+import TiptapCode from '@tiptap/extension-code'; // Pakai alias biar gak bentrok sama icon <Code />
+
 import { useDialog } from "@/context/DialogContext";
-import { useRouter } from "next/navigation"; // Tambahin ini
-import { SlideEmbed } from "@/lib/SlideExtension"; // Sesuaikan path-nya
-import { Presentation } from "lucide-react"; // Import icon-nya
+import { useRouter } from "next/navigation";
+import { SlideEmbed } from "@/lib/SlideExtension";
 
 // --- KOMPONEN TOOLBAR EDITOR ---
 const MenuBar = ({ editor }: { editor: any }) => {
     // FUNGSI BUAT NANGKAP LINK SLIDE
     const addSlideEmbed = () => {
-        // Lu bisa ganti prompt ini pakai Modal keren bawaan aplikasi lu kalau mau
         const url = prompt("Masukkan Link Embed Slide (Google Slides, SpeakerDeck, atau link PDF):");
 
         if (url && editor) {
@@ -68,11 +75,12 @@ interface EditorCanvasProps {
 
 // --- KANVAS UTAMA ---
 export default function EditorCanvas({ postId }: EditorCanvasProps) {
-    const router = useRouter(); // Panggil ini
-    const { showPrompt, showAlert } = useDialog(); // Panggil showAlert biar bisa nampilin pop-up sukses
+    const router = useRouter();
+    const { showPrompt, showAlert } = useDialog();
+
     // 1. STATE UNTUK DATA & AUTO-SAVE
     const [title, setTitle] = useState("Tanpa Judul");
-    const [content, setContent] = useState(""); // Nampung HTML dari Tiptap
+    const [content, setContent] = useState("");
     const [tags, setTags] = useState("");
 
     const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -81,7 +89,6 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
 
     // 1. TAMBAHIN STATE LOADING INI
     const [isInitialLoading, setIsInitialLoading] = useState(true);
-    // const isFirstRender = useRef(true);
 
     // 2. INISIALISASI TIPTAP
     const editor = useEditor({
@@ -95,11 +102,19 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
                 placeholder: 'Mulai ketik pemikiran, riset, atau kode arsitektur Anda di sini...',
             }),
             SlideEmbed,
+            // --- EKSTENSI BARU DIDAFTARKAN DI SINI ---
+            CodeBlock,
+            TiptapCode,
+            Table.configure({ resizable: true }),
+            TableRow,
+            TableHeader,
+            TableCell,
         ],
         content: '',
         editorProps: {
             attributes: {
-                class: 'prose prose-lg prose-sumi max-w-none min-h-[500px] prose-p:text-sumi-light prose-p:leading-relaxed prose-h3:text-2xl prose-h3:font-bold prose-blockquote:border-l-4 prose-blockquote:border-sumi-10 prose-blockquote:pl-6 prose-blockquote:italic prose-pre:bg-sumi prose-pre:text-washi-dark prose-pre:rounded-xl prose-code:text-sumi-light focus:outline-none',
+                // Tambahin styling dasar tabel biar kalau lagi ngedit di canvas nggak berantakan bentuknya
+                class: 'prose prose-lg prose-sumi max-w-none min-h-[500px] prose-p:text-sumi-light prose-p:leading-relaxed prose-h3:text-2xl prose-h3:font-bold prose-blockquote:border-l-4 prose-blockquote:border-sumi-10 prose-blockquote:pl-6 prose-blockquote:italic prose-pre:bg-sumi prose-pre:text-washi-dark prose-pre:rounded-xl prose-code:text-sumi-light prose-table:table-auto prose-td:border prose-td:border-sumi-10 prose-td:p-2 prose-th:border prose-th:border-sumi-10 prose-th:p-2 prose-th:bg-sumi/5 focus:outline-none',
             },
         },
         // TRIGGER SETIAP KALI TIPTAP BERUBAH
@@ -119,13 +134,12 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
 
         const delayDebounceFn = setTimeout(async () => {
             try {
-                // Tembak API Update Postingan kita
                 const res = await fetch(`/api/posts/${postId}`, {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         title: title,
-                        content: content // Ngirim JSON HTML-nya Tiptap
+                        content: content
                     }),
                 });
 
@@ -139,7 +153,7 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
                 console.error(error);
                 setSaveStatus("error");
             }
-        }, 1000); // Tunggu 1 detik setelah berhenti ngetik
+        }, 1000);
 
         return () => clearTimeout(delayDebounceFn);
 
@@ -149,22 +163,20 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
     const handlePublish = async () => {
         setIsPublishing(true);
         try {
-            // Kita tembak API yang sama, tapi kali ini kita kirim published: true
             const res = await fetch(`/api/posts/${postId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     title: title,
                     content: content,
-                    published: true // INI KUNCINYA BRO!
+                    published: true
                 }),
             });
 
             if (res.ok) {
                 showAlert("Artikel berhasil mengudara ke publik!", "Sukses", "success");
-                // Lempar user ke Beranda biar dia bisa langsung liat artikelnya nongkrong!
                 router.push("/");
-                router.refresh(); // Paksa Beranda nge-fetch data terbaru dari PostgreSQL
+                router.refresh();
             } else {
                 showAlert("Gagal mempublikasikan artikel.", "Error", "danger");
             }
@@ -182,16 +194,10 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
                 const res = await fetch(`/api/posts/${postId}`);
                 if (res.ok) {
                     const data = await res.json();
-
-                    // Isi judulnya dari database!
                     setTitle(data.title || "Tanpa Judul");
 
-                    // Kalau artikel udah di-publish, kita bisa nampilin statusnya juga nanti
-
-                    // Kunci Tiptap: Masukin konten dari database ke dalam editor
                     if (data.content && typeof data.content === 'string') {
                         setContent(data.content);
-                        // Masukin ke Tiptap kalau editornya udah siap
                         if (editor) {
                             editor.commands.setContent(data.content);
                         }
@@ -200,18 +206,17 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
             } catch (error) {
                 console.error("Gagal load artikel:", error);
             } finally {
-                setIsInitialLoading(false); // Selesai loading
+                setIsInitialLoading(false);
             }
         };
 
         if (editor) {
-            fetchPostData()
+            fetchPostData();
         }
-    }, [postId, editor])
+    }, [postId, editor]);
 
     return (
         <div className="flex-1 flex flex-col h-[calc(100vh-64px)] overflow-y-auto bg-washi relative">
-
             {/* Top Bar Editor */}
             <div className="sticky top-0 z-40 flex items-center justify-between px-6 md:px-8 py-4 bg-washi/90 backdrop-blur-sm border-b border-sumi-10">
                 <div className="flex items-center gap-2 text-xs font-medium text-sumi-muted truncate max-w-[50%]">
@@ -221,7 +226,6 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
                 </div>
 
                 <div className="flex items-center gap-4 shrink-0">
-
                     {/* INDIKATOR AUTO-SAVE DINAMIS */}
                     <div className="hidden md:flex items-center gap-1.5 text-xs font-medium transition-colors">
                         {saveStatus === "saving" && <><Loader2 size={14} className="animate-spin text-sumi-muted" /> <span className="text-sumi-muted">Menyimpan...</span></>}
@@ -230,9 +234,6 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
                         {saveStatus === "idle" && <><CheckCircle2 size={14} className="text-sumi-muted/50" /> <span className="text-sumi-muted/70">Tersimpan otomatis</span></>}
                     </div>
 
-                    {/* <button className="flex items-center gap-2 bg-sumi text-washi px-4 py-1.5 rounded-full text-xs font-bold hover:bg-sumi-light transition-all shadow-sm hover:shadow-md">
-                        <Play size={12} className="fill-washi" /> Publikasikan
-                    </button> */}
                     <button
                         onClick={handlePublish}
                         disabled={isPublishing}
@@ -250,7 +251,6 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
 
             {/* Area Ngetik Utama */}
             <div className="max-w-3xl mx-auto w-full px-6 md:px-8 py-10 md:py-12 flex-1 flex flex-col">
-
                 {isInitialLoading ? (
                     <div className="animate-pulse flex flex-col gap-6 w-full">
                         <div className="h-12 bg-sumi-10 rounded-lg w-3/4"></div>
@@ -289,7 +289,6 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
                         </div>
                     </>
                 )}
-
             </div>
         </div>
     );
