@@ -69,6 +69,15 @@ function parseNtcToHtml(rawText: string) {
         return `\n__PROTECTED_BLOCK_${protectedBlocks.length - 1}__\n`;
     });
 
+    // 1. Parsing LINKED IMAGE / BADGE (Contoh: [![Python](img-url)](link-url) )
+    // Kita kasih class inline-block & h-6 biar badge-nya rapi sejajar sama teks
+    html = html.replace(/\[\!\[([^\]]*)\]\((.*?)\)\]\((.*?)\)/g, '<a href="$3" target="_blank" rel="noopener noreferrer" class="inline-block mx-1 hover:opacity-80 transition-opacity"><img src="$2" alt="$1" class="inline-block m-0 h-6 align-middle" /></a>');
+
+    // 2. Parsing GAMBAR STANDAR INLINE (Contoh: ![Alt](img-url) )
+    html = html.replace(/\!\[([^\]]*)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="inline-block m-0 align-middle" />');
+
+    // 3. Parsing LINK STANDAR (Contoh: [Google](https://google.com) )
+    html = html.replace(/\[([^\]]+)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:text-blue-700 underline">$1</a>');
     // --- SEKARANG PARSING TEXT INLINE SEPERTI BIASA ---
     html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');

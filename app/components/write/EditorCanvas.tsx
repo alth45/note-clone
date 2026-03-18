@@ -6,6 +6,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
+import LinkExtension from '@tiptap/extension-link';
 
 // --- IMPORT "OTAK TAMBAHAN" TIPTAP (TABLE & CODE) ---
 import { Table } from '@tiptap/extension-table';
@@ -109,6 +110,12 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
             TableRow,
             TableHeader,
             TableCell,
+            LinkExtension.configure({
+                openOnClick: false, // Biar pas ngedit, linknya gak kepencet pindah halaman
+                HTMLAttributes: {
+                    class: 'text-blue-500 hover:text-blue-700 underline cursor-pointer',
+                },
+            }),
         ],
         content: '',
         editorProps: {
