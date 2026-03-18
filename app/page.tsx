@@ -71,21 +71,20 @@ export default async function Home() {
                   slug={post.slug}
                   title={post.title}
 
-                  // Karena konten asli JSON Tiptap susah dibaca mentah, kita kasih teks potong sementara
+                  // Excerpt teks potong
                   excerpt={`Catatan dan eksplorasi terbaru mengenai ${post.title.toLowerCase()}...`}
 
-                  // Ambil nama dari relasi tabel User
+                  // Nama Penulis
                   author={post.author?.name || "Penulis Misterius"}
 
-                  // Format tanggal otomatis ke gaya Indonesia (Misal: 24 Feb 2026)
+                  // Format Tanggal Indonesia
                   date={new Intl.DateTimeFormat('id-ID', {
                     day: 'numeric', month: 'short', year: 'numeric'
                   }).format(new Date(post.updatedAt))}
 
-                  readTime="5 min" // Nanti ini bisa kita bikin fungsi hitung kata
+                  readTime="5 min" // Fungsi hitung kata nanti
 
-                  // Kalau dia belum upload cover, kasih gambar default estetik
-                  image={post.coverImage || "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=800&auto=format&fit=crop"}
+                // image={post.coverImage || "..."} // <-- HAPUS BARIS INI BRO!
                 />
               ))
             )}
