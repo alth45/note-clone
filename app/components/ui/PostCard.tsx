@@ -149,7 +149,7 @@ export default function PostCard({
                     <span>{date}</span>
                 </div>
 
-                <Link href={`/read/${slug}`} className="block flex-1">
+                <Link href={`/post/${slug}`} className="block flex-1">
                     <h3 className="text-lg font-bold text-sumi mb-2 leading-snug group-hover:text-sumi-light transition-colors line-clamp-2">
                         {title}
                     </h3>
