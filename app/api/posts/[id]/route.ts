@@ -14,7 +14,7 @@ export async function PATCH(
             return NextResponse.json({ message: "Akses ditolak" }, { status: 401 });
 
         const body = await req.json();
-        const { title, content, published, tags } = body;
+        const { title, content, published, tags, coverImage } = body;
 
         const existingPost = await prisma.post.findUnique({
             where: { id },
@@ -27,13 +27,9 @@ export async function PATCH(
                 { status: 403 }
             );
 
-        // Normalise tags — trim, lowercase, buang kosong, buang duplikat
+        // Normalise tags
         const normalisedTags: string[] | undefined = Array.isArray(tags)
-            ? [...new Set(
-                tags
-                    .map((t: string) => t.trim().toLowerCase())
-                    .filter(Boolean)
-            )]
+            ? [...new Set(tags.map((t: string) => t.trim().toLowerCase()).filter(Boolean))]
             : undefined;
 
         const updatedPost = await prisma.post.update({
@@ -42,15 +38,13 @@ export async function PATCH(
                 title: title !== undefined ? title : existingPost.title,
                 content: content !== undefined ? content : existingPost.content,
                 published: published !== undefined ? published : existingPost.published,
-                // Hanya update tags kalau dikirim
+                // coverImage: null = hapus, string = set, undefined = tidak diubah
+                ...(coverImage !== undefined && { coverImage: coverImage ?? null }),
                 ...(normalisedTags !== undefined && { tags: normalisedTags }),
             },
         });
 
-        return NextResponse.json(
-            { message: "Tersimpan", post: updatedPost },
-            { status: 200 }
-        );
+        return NextResponse.json({ message: "Tersimpan", post: updatedPost }, { status: 200 });
 
     } catch (error) {
         console.error("Error auto-save:", error);
@@ -74,10 +68,7 @@ export async function GET(
         });
 
         if (!post || post.author.email !== session.user.email)
-            return NextResponse.json(
-                { message: "Artikel tidak ditemukan" },
-                { status: 404 }
-            );
+            return NextResponse.json({ message: "Artikel tidak ditemukan" }, { status: 404 });
 
         return NextResponse.json(post, { status: 200 });
 

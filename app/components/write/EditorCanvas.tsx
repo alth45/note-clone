@@ -24,12 +24,14 @@ import { useRouter } from "next/navigation";
 import { useEditorPost } from "@/components/write/hooks/useEditorPost";
 import { useDraftBackup } from "@/components/write/hooks/useDraftBackup";
 import { useNtcDownload } from "@/components/write/hooks/useNtcDownload";
+import { useCoverImage } from "@/components/write/hooks/useCoverImage";
 import { clearDraftFromLS } from "@/components/write/utils/draftStorage";
 
 import RecoveryBanner from "@/components/write/RecoveryBanner";
 import EditorTopBar from "@/components/write/EditorTopBar";
 import EditorToolbar from "@/components/write/EditorToolbar";
 import TagInput from "@/components/write/TagInput";
+import CoverImageUploader from "@/components/write/components/CoverImageUploader";
 
 interface EditorCanvasProps {
     postId: string;
@@ -91,6 +93,11 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
     });
 
     // ── Hooks ─────────────────────────────────────────────────────────────────
+    const cover = useCoverImage({
+        postId,
+        onError: (msg) => showAlert(msg, "Error", "danger"),
+    });
+
     const backup = useDraftBackup({
         postId,
         editor,
@@ -106,7 +113,10 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
         postId,
         editor,
         isApplyingBackup,
-        onLoaded: (t, c) => backup.checkForBackup(t, c),
+        onLoaded: (t, c, serverCover) => {
+            backup.checkForBackup(t, c);
+            if (serverCover) cover.setCoverUrl(serverCover);
+        },
         onSaveFailed: (t, c) => backup.saveBackup(t, c),
         onSaveSuccess: () => backup.clearBackup(),
     });
@@ -169,6 +179,13 @@ export default function EditorCanvas({ postId }: EditorCanvasProps) {
                     </div>
                 ) : (
                     <>
+                        <CoverImageUploader
+                            coverUrl={cover.coverUrl}
+                            status={cover.coverStatus}
+                            onSave={(url) => cover.saveCover(url)}
+                            onRemove={cover.removeCover}
+                        />
+
                         <input
                             type="text"
                             value={post.title}

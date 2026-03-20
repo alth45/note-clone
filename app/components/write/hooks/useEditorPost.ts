@@ -16,8 +16,8 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 interface UseEditorPostOptions {
     postId: string;
     editor: Editor | null;
-    // Callback saat load selesai — dipakai useDraftBackup untuk cek LS
-    onLoaded: (serverTitle: string, serverContent: string) => void;
+    // Callback saat load selesai — dipakai useDraftBackup untuk cek LS + useCoverImage untuk set initial cover
+    onLoaded: (serverTitle: string, serverContent: string, serverCover: string | null) => void;
     // Callback saat save gagal — dipakai useDraftBackup untuk simpan ke LS
     onSaveFailed: (title: string, content: string) => void;
     // Callback saat save berhasil — clear LS backup
@@ -74,13 +74,14 @@ export function useEditorPost({
                 const serverTitle = data.title || "Tanpa Judul";
                 const serverContent = typeof data.content === "string" ? data.content : "";
                 const serverTags = Array.isArray(data.tags) ? data.tags : [];
+                const serverCover = data.coverImage ?? null;
 
                 setTitle(serverTitle);
                 setContent(serverContent);
                 setTags(serverTags);
                 editor.commands.setContent(serverContent);
 
-                onLoaded(serverTitle, serverContent);
+                onLoaded(serverTitle, serverContent, serverCover);
             } catch (err) {
                 console.error("[useEditorPost] load failed:", err);
             } finally {
