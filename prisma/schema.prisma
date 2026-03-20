@@ -96,12 +96,14 @@ model Post {
   author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   // Relasi Folder (Tambahan Baru)
   rawContent  String?   @db.Text
+
   folderId   String?  // Kalau null berarti filenya ada di luar (Root)
   folder     Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
   views       Int      @default(0)
   likesCount  Int       @default(0) // Biar gampang ngitung total like
   likes       Like[]
   bookmarks   Bookmark[]
+  tags   String[]  @default([])
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
