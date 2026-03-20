@@ -156,7 +156,7 @@ export async function POST(req: Request) {
 
             const updatedPost = await prisma.post.update({
                 where: { id: existingPost.id },
-                data: { content: htmlContent }
+                data: { content: htmlContent, rawContent: rawContent }
             });
 
             return NextResponse.json({ message: "Update", action: "updated", postId: updatedPost.id }, { status: 200 });
@@ -168,6 +168,7 @@ export async function POST(req: Request) {
                     title: title.replace(/-/g, ' '),
                     slug: deterministicSlug,
                     content: htmlContent,
+                    rawContent: rawContent,
                     published: false,
                     authorId: user.id // <-- KUNCI UTAMANYA DI SINI
                 }
