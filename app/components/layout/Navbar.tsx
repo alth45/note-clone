@@ -1,17 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { Search, LogIn } from "lucide-react";
+import { Search, LogIn, LayoutDashboard, User } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react"; // 1. IMPORT INI BRO
+import { useSession } from "next-auth/react";
+import { useState, useRef, useEffect } from "react";
 
 export default function Navbar() {
     const pathname = usePathname();
     const isAuthPage = pathname === "/login";
 
-    // 2. AMBIL DATA SESSION DARI NEXTAUTH
     const { data: session } = useSession();
-    const user = session?.user; // Ekstrak user-nya biar gampang dipanggil
+    const user = session?.user as any;
+    const handle = user?.handle;
+
+    // Dropdown state
+    const [open, setOpen] = useState(false);
+    const dropRef = useRef<HTMLDivElement>(null);
+
+    // Tutup dropdown kalau klik di luar
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
     return (
         <header className="sticky top-0 z-50 bg-washi/80 backdrop-blur-md border-b border-sumi-10">
@@ -29,23 +45,63 @@ export default function Navbar() {
                         </span>
                     </button>
 
-                    {/* LOGIKA DINAMIS NAVBAR */}
                     {user ? (
-                        // KALAU SUDAH LOGIN: Tampilkan Avatar Profile
-                        <Link
-                            href="/dashboard"
-                            className="w-9 h-9 rounded-full overflow-hidden border-2 border-transparent hover:border-sumi transition-all duration-300"
-                            title="Ke Dashboard"
-                        >
-                            {/* 3. UBAH user.avatar JADI user.image (Sesuai database Prisma kita) */}
-                            <img
-                                src={user.image || `https://ui-avatars.com/api/?name=${user.name}&background=1c1c1e&color=f4f4f5`}
-                                alt="Profile"
-                                className="w-full h-full object-cover"
-                            />
-                        </Link>
+                        // Avatar + dropdown
+                        <div className="relative" ref={dropRef}>
+                            <button
+                                onClick={() => setOpen((v) => !v)}
+                                className="w-9 h-9 rounded-full overflow-hidden border-2 border-transparent hover:border-sumi transition-all duration-300 focus:outline-none"
+                                title="Menu profil"
+                            >
+                                <img
+                                    src={
+                                        user.image ||
+                                        `https://ui-avatars.com/api/?name=${user.name}&background=1c1c1e&color=f4f4f5`
+                                    }
+                                    alt="Profile"
+                                    className="w-full h-full object-cover"
+                                />
+                            </button>
+
+                            {open && (
+                                <div className="absolute right-0 mt-2 w-48 bg-washi border border-sumi-10 rounded-2xl shadow-[0_8px_30px_rgb(28,28,30,0.10)] overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-150">
+                                    {/* Header nama */}
+                                    <div className="px-4 py-3 border-b border-sumi-10">
+                                        <p className="text-sm font-bold text-sumi truncate">
+                                            {user.name || "User"}
+                                        </p>
+                                        <p className="text-xs text-sumi-muted truncate">
+                                            {handle ? `@${handle}` : user.email}
+                                        </p>
+                                    </div>
+
+                                    {/* Menu items */}
+                                    <div className="py-1.5">
+                                        {/* Profil publik — hanya tampil kalau punya handle */}
+                                        {handle && (
+                                            <Link
+                                                href={`/u/${handle}`}
+                                                onClick={() => setOpen(false)}
+                                                className="flex items-center gap-3 px-4 py-2.5 text-sm text-sumi-muted hover:text-sumi hover:bg-sumi/5 transition-colors"
+                                            >
+                                                <User size={15} />
+                                                Profil Publik
+                                            </Link>
+                                        )}
+
+                                        <Link
+                                            href="/dashboard"
+                                            onClick={() => setOpen(false)}
+                                            className="flex items-center gap-3 px-4 py-2.5 text-sm text-sumi-muted hover:text-sumi hover:bg-sumi/5 transition-colors"
+                                        >
+                                            <LayoutDashboard size={15} />
+                                            Dashboard
+                                        </Link>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     ) : (
-                        // KALAU BELUM LOGIN: Tampilkan Tombol Sign In (Kecuali di halaman login)
                         !isAuthPage && (
                             <Link
                                 href="/login"
@@ -56,7 +112,6 @@ export default function Navbar() {
                             </Link>
                         )
                     )}
-
                 </div>
             </div>
         </header>

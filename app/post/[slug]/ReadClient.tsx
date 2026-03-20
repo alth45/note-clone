@@ -10,6 +10,8 @@ import FloatingActionBar from "@/components/ui/FloatingActionBar";
 import parse, { domToReact, HTMLReactParserOptions } from 'html-react-parser';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import RelatedArticles from "./RelatedArticles";
+
 
 type ReadMode = 'default' | 'journal' | 'pdf' | 'zen';
 
@@ -19,7 +21,7 @@ interface TocItem {
     level: number;
 }
 
-export default function ReadClient({ post }: { post: any }) {
+export default function ReadClient({ post, relatedPosts = [], relatedReason = 'recent' }: { post: any, relatedPosts?: any, relatedReason?: any }) {
     const [mode, setMode] = useState<ReadMode>('default');
     const [toc, setToc] = useState<TocItem[]>([]);
     const [activeId, setActiveId] = useState<string>("");
@@ -294,6 +296,7 @@ export default function ReadClient({ post }: { post: any }) {
                 </div>
 
             </article>
+            <RelatedArticles posts={relatedPosts} reason={relatedReason} />
         </div>
     );
 }
