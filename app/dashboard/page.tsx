@@ -10,6 +10,9 @@ import {
 import { useSession, signOut } from "next-auth/react";
 import { useDialog } from "@/context/DialogContext";
 import { useRouter } from "next/navigation";
+import { BarChart2 } from "lucide-react";
+
+
 
 type Tab = "published" | "draft" | "saved";
 
@@ -244,6 +247,12 @@ export default function DashboardPage() {
                                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-red-200 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">
                                 Keluar
                             </button>
+                            <Link
+                                href="/dashboard/analytics"
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-sumi-10 text-sm font-medium text-sumi hover:bg-sumi/5 transition-colors"
+                            >
+                                <BarChart2 size={16} /> Analitik
+                            </Link>
                             <button onClick={handleCreateNewPost}
                                 className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-sumi text-washi text-sm font-bold hover:bg-sumi-light hover:-translate-y-0.5 transition-all duration-300">
                                 <PenSquare size={16} /> Tulis Baru
@@ -257,9 +266,10 @@ export default function DashboardPage() {
             <div className="grid grid-cols-3 gap-4 mb-12">
                 {[
                     { icon: <FileText size={20} />, value: stats.posts, label: "Postingan" },
-                    { icon: <Eye size={20} />, value: stats.views, label: "Total Views" },
+                    { icon: <Link href="/dashboard/analytics"><Eye size={20} />, value: stats.views, label: "Total Views"</Link> },
                     { icon: <Bookmark size={20} />, value: isLoadingSaved && activeTab !== "saved" ? "—" : stats.saved, label: "Tersimpan" },
                 ].map(({ icon, value, label }) => (
+
                     <div key={label} className="bg-washi-dark/50 border border-sumi-10 rounded-2xl p-5 flex flex-col items-center justify-center text-center">
                         <span className="text-sumi-muted mb-2">{icon}</span>
                         {isLoadingPosts && label !== "Tersimpan"
@@ -291,8 +301,8 @@ export default function DashboardPage() {
                             {labels[tab]}
                             {counts[tab] > 0 && (
                                 <span className={`ml-1 text-[10px] ${tab === "draft"
-                                        ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 px-1.5 py-0.5 rounded-full"
-                                        : "opacity-50"
+                                    ? "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 px-1.5 py-0.5 rounded-full"
+                                    : "opacity-50"
                                     }`}>
                                     ({counts[tab]})
                                 </span>
