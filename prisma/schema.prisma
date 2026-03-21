@@ -24,6 +24,7 @@ model User {
 
   // --- TAMBAHAN BARU BUAT CLI ---
   cliToken      String?   @unique // Token rahasia buat nge-push file
+  comments      Comment[]
   
   accounts      Account[]
   sessions      Session[]
@@ -104,6 +105,7 @@ model Post {
   likes       Like[]
   bookmarks   Bookmark[]
   tags   String[]  @default([])
+  comments    Comment[]
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -135,4 +137,19 @@ model Bookmark {
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId]) // 1 user cuma bisa bookmark 1 kali per artikel
+}
+
+model Comment {
+   id        String    @id @default(cuid())
+   content   String
+   createdAt DateTime  @default(now())
+   updatedAt DateTime  @updatedAt
+   postId    String
+   authorId  String
+   parentId  String?
+
+   post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+   author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+   parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+   replies   Comment[] @relation("CommentReplies")
 }

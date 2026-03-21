@@ -11,6 +11,8 @@ import parse, { domToReact, HTMLReactParserOptions } from 'html-react-parser';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import RelatedArticles from "./RelatedArticles";
+import CommentThread from "@/components/ui/CommentThread";
+
 
 
 type ReadMode = 'default' | 'journal' | 'pdf' | 'zen';
@@ -297,6 +299,7 @@ export default function ReadClient({ post, relatedPosts = [], relatedReason = 'r
 
             </article>
             <RelatedArticles posts={relatedPosts} reason={relatedReason} />
+            <CommentThread postId={post.id} />
         </div>
     );
 }
