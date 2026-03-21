@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
+import { notifyNewFollower } from "@/lib/createNotification";
+
 
 // POST /api/follow
 // body: { followingId: string }
@@ -83,6 +85,10 @@ export async function POST(req: Request) {
             // Follow
             await prisma.follow.create({
                 data: { followerId: follower.id, followingId },
+            });
+            void notifyNewFollower({
+                followingId: followingId,  // yang menerima follow
+                actorId: follower.id,  // yang melakukan follow
             });
 
             const followerCount = await prisma.follow.count({

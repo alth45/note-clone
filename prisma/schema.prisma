@@ -26,6 +26,9 @@ model User {
   cliToken      String?   @unique // Token rahasia buat nge-push file
   comments      Comment[]
   
+  notifications     Notification[] @relation("UserNotifications")
+  actorNotifications Notification[] @relation("UserActorNotifications")
+  
   accounts      Account[]
   sessions      Session[]
   posts         Post[]   
@@ -109,6 +112,8 @@ model Post {
   bookmarks   Bookmark[]
   tags   String[]  @default([])
   comments    Comment[]
+  notifications     Notification[]
+  
 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -155,6 +160,8 @@ model Comment {
    author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
    parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
    replies   Comment[] @relation("CommentReplies")
+   notifications     Notification[]
+   
 }
 
 model Follow {
@@ -169,4 +176,32 @@ model Follow {
    @@unique([followerId, followingId])
    @@index([followerId])
    @@index([followingId])
+}
+
+
+enum NotificationType {
+   NEW_COMMENT
+   NEW_REPLY
+   NEW_LIKE
+   NEW_FOLLOWER
+ }
+
+ model Notification {
+   id          String           @id @default(cuid())
+   type        NotificationType
+   isRead      Boolean          @default(false)
+   createdAt   DateTime         @default(now())
+   recipientId String
+   actorId     String?
+   postId      String?
+   commentId   String?
+
+   recipient   User             @relation("UserNotifications",  fields: [recipientId], references: [id], onDelete: Cascade)
+   actor       User?            @relation("UserActorNotifications", fields: [actorId], references: [id], onDelete: SetNull)
+   post        Post?            @relation(fields: [postId],    references: [id], onDelete: Cascade)
+   comment     Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+   @@index([recipientId, createdAt(sort: Desc)])
+   @@index([recipientId, isRead])
+   
 }

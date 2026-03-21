@@ -3,6 +3,11 @@ import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
+import {
+    notifyNewComment,
+    notifyNewReply,
+} from "@/lib/createNotification";
+
 // ─── Select shape yang konsisten ──────────────────────────────────────────────
 const COMMENT_SELECT = {
     id: true,
@@ -148,6 +153,39 @@ export async function POST(req: Request) {
             },
             select: COMMENT_SELECT,
         });
+
+        void (async () => {
+            if (parentId) {
+                // Reply — notify author komentar yang di-reply
+                const parent = await prisma.comment.findUnique({
+                    where: { id: parentId },
+                    select: { authorId: true },
+                });
+                if (parent) {
+                    await notifyNewReply({
+                        parentCommentAuthorId: parent.authorId,
+                        actorId: user.id,
+                        postId,
+                        commentId: comment.id,
+                    });
+                }
+            } else {
+                // Top-level — notify author artikel
+                const postRecord = await prisma.post.findUnique({
+                    where: { id: postId },
+                    select: { authorId: true },
+                });
+                if (postRecord) {
+                    await notifyNewComment({
+                        postAuthorId: postRecord.authorId,
+                        actorId: user.id,
+                        postId,
+                        commentId: comment.id,
+                    });
+                }
+            }
+        })();
+
 
         return NextResponse.json(comment, { status: 201 });
 

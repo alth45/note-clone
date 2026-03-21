@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
+import { notifyNewLike } from "@/lib/createNotification";
+
 
 export async function POST(req: Request) {
     try {
@@ -24,6 +26,17 @@ export async function POST(req: Request) {
             } else {
                 await prisma.like.create({ data: { userId: user.id, postId } });
                 await prisma.post.update({ where: { id: postId }, data: { likesCount: { increment: 1 } } });
+                const likedPost = await prisma.post.findUnique({
+                    where: { id: postId },
+                    select: { authorId: true },
+                });
+                if (likedPost) {
+                    void notifyNewLike({
+                        postAuthorId: likedPost.authorId,
+                        actorId: user.id,
+                        postId,
+                    });
+                }
                 return NextResponse.json({ message: "Liked" }, { status: 200 });
             }
         }
