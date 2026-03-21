@@ -31,6 +31,9 @@ model User {
   posts         Post[]   
   likes       Like[]
   bookmarks   Bookmark[]
+
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -152,4 +155,18 @@ model Comment {
    author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
    parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
    replies   Comment[] @relation("CommentReplies")
+}
+
+model Follow {
+   id          String   @id @default(cuid())
+   followerId  String
+   followingId String
+   createdAt   DateTime @default(now())
+
+   follower    User     @relation("UserFollowers",  fields: [followerId],  references: [id], onDelete: Cascade)
+   following   User     @relation("UserFollowing",  fields: [followingId], references: [id], onDelete: Cascade)
+
+   @@unique([followerId, followingId])
+   @@index([followerId])
+   @@index([followingId])
 }

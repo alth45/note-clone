@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText, Eye, Calendar, Bookmark } from "lucide-react";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
 import PostCard from "@/components/ui/PostCard";
+import FollowButton from "@/components/ui/FollowButton";
 
-export const revalidate = 60; // Revalidate setiap 60 detik
+export const revalidate = 60;
 
-// ─── Meta ─────────────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: any) {
     const { handle } = await params;
     const user = await prisma.user.findUnique({
@@ -20,7 +22,6 @@ export async function generateMetadata({ params }: any) {
     };
 }
 
-// ─── Color helper (sama kayak PostCard) ──────────────────────────────────────
 function getColorFromString(str: string) {
     const palette = [
         "#4A5568", "#718096", "#2C7A7B", "#4C51BF",
@@ -33,56 +34,84 @@ function getColorFromString(str: string) {
     return palette[Math.abs(hash) % palette.length];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatCount(n: number): string {
-    if (n >= 1000) return (n / 1000).toFixed(1) + "k";
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "jt";
+    if (n >= 1000) return (n / 1000).toFixed(1) + "rb";
     return String(n);
 }
 
 export default async function PublicProfilePage({ params }: any) {
     const { handle } = await params;
 
-    const user = await prisma.user.findUnique({
-        where: { handle },
-        select: {
-            id: true,
-            name: true,
-            handle: true,
-            bio: true,
-            image: true,
-            createdAt: true,
-            posts: {
-                where: { published: true },
-                orderBy: { updatedAt: "desc" },
-                select: {
-                    id: true,
-                    title: true,
-                    slug: true,
-                    views: true,
-                    likesCount: true,
-                    updatedAt: true,
-                    folderId: true,
-                    author: { select: { name: true } },
+    // Fetch user + follow counts + artikel bersamaan
+    const [user, session] = await Promise.all([
+        prisma.user.findUnique({
+            where: { handle },
+            select: {
+                id: true,
+                name: true,
+                handle: true,
+                bio: true,
+                image: true,
+                createdAt: true,
+                posts: {
+                    where: { published: true },
+                    orderBy: { updatedAt: "desc" },
+                    select: {
+                        id: true,
+                        title: true,
+                        slug: true,
+                        views: true,
+                        likesCount: true,
+                        updatedAt: true,
+                        folderId: true,
+                        tags: true,
+                        author: { select: { name: true } },
+                    },
+                },
+                _count: {
+                    select: {
+                        posts: { where: { published: true } },
+                        followers: true,
+                        following: true,
+                    },
                 },
             },
-            _count: {
-                select: {
-                    posts: { where: { published: true } },
-                    // followers: true,
-                    // following: true,
-                },
-            },
-        },
-    });
+        }),
+        getServerSession(authOptions),
+    ]);
 
     if (!user) notFound();
 
-    const totalViews = user.posts.reduce((sum, p) => sum + (p.views || 0), 0);
-    const totalLikes = user.posts.reduce((sum, p) => sum + (p.likesCount || 0), 0);
+    // Cek apakah user yang login sudah follow
+    let isFollowing = false;
+    let isOwnProfile = false;
+
+    if (session?.user?.email) {
+        const me = await prisma.user.findUnique({
+            where: { email: session.user.email },
+            select: { id: true, handle: true },
+        });
+        if (me) {
+            isOwnProfile = me.handle === handle;
+            if (!isOwnProfile) {
+                const row = await prisma.follow.findUnique({
+                    where: {
+                        followerId_followingId: {
+                            followerId: me.id,
+                            followingId: user.id,
+                        },
+                    },
+                });
+                isFollowing = !!row;
+            }
+        }
+    }
+
+    const totalViews = user.posts.reduce((s, p) => s + (p.views || 0), 0);
+    const totalLikes = user.posts.reduce((s, p) => s + (p.likesCount || 0), 0);
     const accentColor = getColorFromString(handle);
     const joinYear = new Date(user.createdAt).getFullYear();
-
-    // Pisah artikel yang ada folder vs tidak (untuk tampilan grid)
     const loosePosts = user.posts.filter((p) => !p.folderId);
 
     return (
@@ -90,10 +119,7 @@ export default async function PublicProfilePage({ params }: any) {
 
             {/* ── Top nav ── */}
             <div className="max-w-4xl mx-auto px-6 pt-8">
-                <Link
-                    href="/"
-                    className="inline-flex items-center gap-2 text-sm font-medium text-sumi-muted hover:text-sumi transition-colors mb-10"
-                >
+                <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-sumi-muted hover:text-sumi transition-colors mb-10">
                     <ArrowLeft size={16} /> Beranda
                 </Link>
             </div>
@@ -109,15 +135,11 @@ export default async function PublicProfilePage({ params }: any) {
                             style={{ borderColor: accentColor + "40" }}
                         >
                             <img
-                                src={
-                                    user.image ||
-                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || handle)}&background=1c1c1e&color=f4f4f5&size=96`
-                                }
+                                src={user.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || handle)}&background=1c1c1e&color=f4f4f5&size=96`}
                                 alt={user.name || handle}
                                 className="w-full h-full object-cover"
                             />
                         </div>
-                        {/* Aksen warna kecil di pojok */}
                         <div
                             className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-washi"
                             style={{ backgroundColor: accentColor }}
@@ -133,6 +155,16 @@ export default async function PublicProfilePage({ params }: any) {
                                 </h1>
                                 <p className="text-sm text-sumi-muted mt-0.5">@{handle}</p>
                             </div>
+
+                            {/* Follow button — hanya tampil kalau bukan profil sendiri */}
+                            {!isOwnProfile && (
+                                <FollowButton
+                                    handle={handle}
+                                    targetId={user.id}
+                                    initialFollowing={isFollowing}
+                                    initialCount={user._count.followers}
+                                />
+                            )}
                         </div>
 
                         {user.bio && (
@@ -141,29 +173,38 @@ export default async function PublicProfilePage({ params }: any) {
                             </p>
                         )}
 
-                        {/* Meta baris */}
+                        {/* Meta */}
                         <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-sumi-muted">
                             <span className="flex items-center gap-1.5">
-                                <Calendar size={12} />
-                                Bergabung {joinYear}
+                                <Calendar size={12} /> Bergabung {joinYear}
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <FileText size={12} />
-                                {user._count.posts} artikel
+                                <FileText size={12} /> {user._count.posts} artikel
                             </span>
                             <span className="flex items-center gap-1.5">
-                                <Eye size={12} />
-                                {formatCount(totalViews)} views
+                                <Eye size={12} /> {formatCount(totalViews)} views
                             </span>
-                            <span className="flex items-center gap-1.5">
-                                <Bookmark size={12} />
-                                {formatCount(totalLikes)} likes
-                            </span>
+                        </div>
+
+                        {/* Follower / Following counts */}
+                        <div className="flex items-center gap-5 mt-4 text-sm">
+                            <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-sumi">
+                                    {formatCount(user._count.followers)}
+                                </span>
+                                <span className="text-sumi-muted">Pengikut</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-sumi">
+                                    {formatCount(user._count.following)}
+                                </span>
+                                <span className="text-sumi-muted">Mengikuti</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* ── Stats strip ── */}
+                {/* Stats strip */}
                 <div
                     className="grid grid-cols-3 gap-3 mt-8 p-4 rounded-2xl border"
                     style={{ borderColor: accentColor + "30", backgroundColor: accentColor + "08" }}
@@ -186,10 +227,7 @@ export default async function PublicProfilePage({ params }: any) {
             {/* ── Divider ── */}
             <div className="max-w-4xl mx-auto px-6">
                 <div className="flex items-center gap-3 mb-8">
-                    <div
-                        className="w-1 h-5 rounded-full"
-                        style={{ backgroundColor: accentColor }}
-                    />
+                    <div className="w-1 h-5 rounded-full" style={{ backgroundColor: accentColor }} />
                     <h2 className="text-sm font-bold text-sumi uppercase tracking-widest">
                         Semua Artikel
                     </h2>
@@ -212,6 +250,7 @@ export default async function PublicProfilePage({ params }: any) {
                                 key={post.id}
                                 slug={post.slug}
                                 title={post.title}
+                                tags={post.tags}
                                 excerpt={`Catatan dari ${user.name || handle} tentang ${post.title.toLowerCase()}...`}
                                 author={user.name || handle}
                                 date={new Intl.DateTimeFormat("id-ID", {
