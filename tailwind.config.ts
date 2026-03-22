@@ -1,7 +1,6 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-    // Aktifkan class-based dark mode — class="dark" di <html>
     darkMode: "class",
 
     content: [
@@ -10,39 +9,31 @@ const config: Config = {
         "./app/**/*.{js,ts,jsx,tsx,mdx}",
         "./hooks/**/*.{js,ts,jsx,tsx}",
         "./lib/**/*.{js,ts,jsx,tsx}",
+        "./context/**/*.{js,ts,jsx,tsx}",
     ],
 
     theme: {
         extend: {
             colors: {
-                // ── Washi (background) ──────────────────────────────────────
-                // bg-washi, bg-washi-dark, text-washi, border-washi, dll
+                // ── Light: kertas putih Jepang ─────────────────────────────
                 washi: {
-                    DEFAULT: "rgb(var(--washi) / <alpha-value>)",
-                    dark: "rgb(var(--washi-dark) / <alpha-value>)",
+                    DEFAULT: "#ffffff",
+                    dark: "#f7f6f2",
                 },
-
-                // ── Sumi (teks & border) ────────────────────────────────────
-                // text-sumi, text-sumi-light, text-sumi-muted
-                // bg-sumi, border-sumi, border-sumi-10
+                // ── Light: tinta hitam Jepang ──────────────────────────────
                 sumi: {
-                    DEFAULT: "rgb(var(--sumi) / <alpha-value>)",
-                    light: "rgb(var(--sumi-light) / <alpha-value>)",
-                    muted: "rgb(var(--sumi-muted) / <alpha-value>)",
-                    // border-sumi-10 = rgb(sumi / 10%)
-                    // Tailwind handles opacity via slash notation otomatis
-                    // tapi kita juga bisa pakai: border-sumi/10
-                    "10": "rgb(var(--sumi-10) / 0.10)",
+                    DEFAULT: "#1c1c1e",
+                    light: "#505054",
+                    muted: "#8e8e93",
+                    "10": "rgba(28,28,30,0.10)",
                 },
             },
 
-            // ── Font ─────────────────────────────────────────────────────────
             fontFamily: {
                 sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
                 mono: ["var(--font-geist-mono)", "monospace"],
             },
 
-            // ── Animation ────────────────────────────────────────────────────
             keyframes: {
                 "fade-in": {
                     from: { opacity: "0" },

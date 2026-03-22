@@ -43,37 +43,39 @@ body {
     /* Warna Aksen 
     --matcha: #E4E8D6;
   } */
+/* 
 
+==============================================================================
 @layer base {
   :root {
     --washi: 255 255 255;
-    /* #ffffff */
+    /* #ffffff 
     --washi-dark: 247 246 242;
-    /* #f7f6f2 — off-white lembut */
+    /* #f7f6f2 — off-white lembut 
     --sumi: 28 28 30;
-    /* #1c1c1e */
+    /* #1c1c1e 
     --sumi-light: 80 80 84;
-    /* #505054 */
+    /* #505054 
     --sumi-muted: 142 142 147;
-    /* #8e8e93 */
+    /* #8e8e93 
     --sumi-10: 28 28 30;
-    /* dipakai sbg border-sumi-10 = rgb(28 28 30 / 0.10) */
+    /* dipakai sbg border-sumi-10 = rgb(28 28 30 / 0.10) 
   }
 
-  /* Dark mode — semua token di-flip */
+  /* Dark mode — semua token di-flip 
   .dark {
     --washi: 18 18 20;
-    /* #121214 — hitam lembut, bukan pure black */
+    /* #121214 — hitam lembut, bukan pure black 
     --washi-dark: 26 26 30;
-    /* #1a1a1e — surface card */
+    /* #1a1a1e — surface card 
     --sumi: 242 242 245;
-    /* #f2f2f5 — teks terang */
+    /* #f2f2f5 — teks terang 
     --sumi-light: 180 180 188;
-    /* #b4b4bc */
+    /* #b4b4bc 
     --sumi-muted: 110 110 118;
-    /* #6e6e76 */
+    /* #6e6e76 
     --sumi-10: 242 242 245;
-    /* border = rgb(242 242 245 / 0.10) */
+    /* border = rgb(242 242 245 / 0.10) 
   }
 
   body {
@@ -85,7 +87,7 @@ body {
 
 /* ─── Transisi smooth saat toggle ───────────────────────────────────────────
    Hanya color properties — tidak memperlambat transform / layout.
-*/
+
 *,
 *::before,
 *::after {
@@ -94,7 +96,7 @@ body {
   transition-timing-function: ease;
 }
 
-/* Matikan transisi untuk elemen yang tidak perlu (animasi, spinner) */
+/* Matikan transisi untuk elemen yang tidak perlu (animasi, spinner) 
 .notransition,
 .animate-spin,
 .animate-pulse,
@@ -104,7 +106,7 @@ body {
 
 /* ─── Scrollbar styling ──────────────────────────────────────────────────────
    Tipis dan konsisten di semua halaman.
-*/
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -123,7 +125,44 @@ body {
   background: rgb(var(--sumi-10) / 0.5);
 }
 
-/* Helper class untuk komponen yang mau hide scrollbar tapi tetap scrollable */
+/* Helper class untuk komponen yang mau hide scrollbar tapi tetap scrollable 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+} 
+=====================================================
+/* Set default warna body biar otomatis Jepang minimalis */
+
+
+/* ── Base styles ─────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-white text-[#1c1c1e];
+  }
+
+  .dark body {
+    @apply bg-[#121214] text-[#f2f2f5];
+  }
+}
+
+/* ── Dark mode transition ────────────────────────────────────────────────── */
+/* Hanya color properties, tidak ganggu layout/transform */
+html.transitioning *,
+html.transitioning *::before,
+html.transitioning *::after {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -133,7 +172,23 @@ body {
   display: none;
 }
 
-/* Set default warna body biar otomatis Jepang minimalis */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
 
 
 @layer utilities {

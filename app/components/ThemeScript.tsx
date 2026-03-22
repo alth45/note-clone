@@ -1,31 +1,13 @@
 // components/ThemeScript.tsx
-// Script kecil yang di-inject di <head> SEBELUM halaman render.
-// Ini mencegah flash of unstyled content (FOUC) saat refresh di dark mode.
-//
-// Cara pakai di app/layout.tsx:
-//   import ThemeScript from "@/components/ThemeScript";
-//   ...
-//   <head>
-//     <ThemeScript />
-//   </head>
+// Inject di <head> sebelum apapun — cegah flash saat refresh di dark mode.
+// Tidak butuh React, jalan sebagai raw script.
 
 export default function ThemeScript() {
-    // dangerouslySetInnerHTML diperlukan agar script dieksekusi segera,
-    // bukan setelah React hydration.
-    const script = `
-(function(){
-    try {
-        var stored = localStorage.getItem('noteos-theme');
-        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var isDark = stored === 'dark' || (!stored && prefersDark);
-        if (isDark) document.documentElement.classList.add('dark');
-    } catch(e) {}
-})();
-    `.trim();
-
     return (
         <script
-            dangerouslySetInnerHTML={{ __html: script }}
+            dangerouslySetInnerHTML={{
+                __html: `(function(){try{var t=localStorage.getItem('noteos-theme');var d=window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t===null&&d)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
+            }}
         />
     );
 }
