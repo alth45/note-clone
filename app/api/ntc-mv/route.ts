@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkCliToken } from "@/lib/checkCliToken";
 
 export async function PATCH(req: Request) {
     try {
@@ -9,7 +10,7 @@ export async function PATCH(req: Request) {
         const { user, error } = await checkCliToken(req);
         if (error) return error;
         // const user = await prisma.user.findUnique({ where: { cliToken: token } });
-        if (!user) return NextResponse.json({ message: "Sesi tidak valid." }, { status: 401 });
+        // if (!user) return NextResponse.json({ message: "Sesi tidak valid." }, { status: 401 });
 
         const { searchParams } = new URL(req.url);
         const slug = searchParams.get('slug');
