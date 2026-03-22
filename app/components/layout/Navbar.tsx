@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
 import { useNotifications } from "@/hooks/useNotifications";
 import NotificationDropdown from "@/components/ui/NotificationDropdown";
+import ThemeToggle from "@/components/ui/ThemeToggle";
 
 export default function Navbar() {
     const pathname = usePathname();
@@ -16,19 +17,14 @@ export default function Navbar() {
     const user = session?.user as any;
     const handle = user?.handle;
 
-    // Profile dropdown
     const [profileOpen, setProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
 
-    // Notification dropdown
     const [notifOpen, setNotifOpen] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
 
-    // Hanya poll notif kalau user sudah login
     const { unreadCount } = useNotifications(!!session && !notifOpen);
-    // Saat dropdown terbuka, useNotifications di dalam dropdown yang fetch detail
 
-    // Tutup dropdown kalau klik di luar
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
@@ -43,26 +39,30 @@ export default function Navbar() {
     }, []);
 
     return (
-        <header className="sticky top-0 z-50 bg-washi/80 backdrop-blur-md border-b border-sumi-10">
+        <header className="sticky top-0 z-50 bg-washi/80 backdrop-blur-md border-b border-sumi/10">
             <div className="max-w-[1440px] mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
 
-                <Link href="/" className="font-bold text-xl tracking-tight">
+                <Link href="/" className="font-bold text-xl tracking-tight text-sumi">
                     ロゴ <span className="font-light text-sumi-muted">/ LOGO</span>
                 </Link>
 
-                <div className="flex items-center gap-3 md:gap-4">
+                <div className="flex items-center gap-1 md:gap-2">
+
                     {/* Search trigger */}
-                    <button className="flex items-center gap-2 text-sumi-muted hover:text-sumi transition-colors px-2 py-1 rounded-md hover:bg-sumi/5">
+                    <button className="flex items-center gap-2 text-sumi-muted hover:text-sumi transition-colors px-2 py-1.5 rounded-lg hover:bg-sumi/5">
                         <Search size={18} />
-                        <span className="text-xs font-medium border border-sumi-10 bg-washi-dark px-1.5 py-0.5 rounded text-sumi-muted/70 hidden sm:block">
+                        <span className="text-xs font-medium border border-sumi/10 bg-washi-dark px-1.5 py-0.5 rounded text-sumi-muted/70 hidden sm:block">
                             Ctrl + K
                         </span>
                     </button>
 
-                    {user ? (
-                        <div className="flex items-center gap-2">
+                    {/* ── Theme toggle — selalu tampil ── */}
+                    <ThemeToggle />
 
-                            {/* ── Bell icon ── */}
+                    {user ? (
+                        <div className="flex items-center gap-1">
+
+                            {/* Bell */}
                             <div className="relative" ref={notifRef}>
                                 <button
                                     onClick={() => {
@@ -74,8 +74,6 @@ export default function Navbar() {
                                     aria-label={`${unreadCount} notifikasi belum dibaca`}
                                 >
                                     <Bell size={18} />
-
-                                    {/* Badge unread count */}
                                     {unreadCount > 0 && (
                                         <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none tabular-nums">
                                             {unreadCount > 99 ? "99+" : unreadCount}
@@ -89,14 +87,14 @@ export default function Navbar() {
                                 />
                             </div>
 
-                            {/* ── Avatar + profile dropdown ── */}
-                            <div className="relative" ref={profileRef}>
+                            {/* Avatar + profile dropdown */}
+                            <div className="relative ml-1" ref={profileRef}>
                                 <button
                                     onClick={() => {
                                         setProfileOpen((v) => !v);
                                         setNotifOpen(false);
                                     }}
-                                    className="w-9 h-9 rounded-full overflow-hidden border-2 border-transparent hover:border-sumi transition-all duration-300 focus:outline-none"
+                                    className="w-9 h-9 rounded-full overflow-hidden border-2 border-transparent hover:border-sumi/30 transition-all duration-300 focus:outline-none"
                                     title="Menu profil"
                                 >
                                     <img
@@ -110,8 +108,8 @@ export default function Navbar() {
                                 </button>
 
                                 {profileOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-washi border border-sumi-10 rounded-2xl shadow-[0_8px_30px_rgb(28,28,30,0.10)] overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-150">
-                                        <div className="px-4 py-3 border-b border-sumi-10">
+                                    <div className="absolute right-0 mt-2 w-48 bg-washi border border-sumi/10 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden z-[60] animate-in">
+                                        <div className="px-4 py-3 border-b border-sumi/10">
                                             <p className="text-sm font-bold text-sumi truncate">
                                                 {user.name || "User"}
                                             </p>
@@ -145,7 +143,7 @@ export default function Navbar() {
                         !isAuthPage && (
                             <Link
                                 href="/login"
-                                className="flex items-center gap-2 text-sm font-medium bg-sumi text-washi px-4 md:px-5 py-2 md:py-2.5 rounded-full hover:bg-sumi-light hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
+                                className="ml-1 flex items-center gap-2 text-sm font-medium bg-sumi text-washi px-4 md:px-5 py-2 md:py-2.5 rounded-full hover:bg-sumi-light hover:-translate-y-0.5 transition-all duration-300"
                             >
                                 <LogIn size={16} />
                                 <span className="hidden sm:inline">Sign In</span>

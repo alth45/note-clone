@@ -9,6 +9,8 @@ import CommandPalette from "@/components/ui/CommandPalette";
 import { DialogProvider } from "@/context/DialogContext"; // IMPORT INI BRO
 // import NextAuth from "next-auth";
 import { NextAuthProvider } from "@/context/NextAuthProvider";
+import ThemeScript from "@/components/ThemeScript";
+
 
 const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
 
@@ -24,6 +26,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className={`${inter.variable} font-sans bg-washi text-sumi antialiased min-h-screen flex flex-col`}>
 
 

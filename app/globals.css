@@ -25,31 +25,116 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 } */
-
+/* 
 @layer base {
   :root {
-    /* Warna Washi (Background ala kertas) */
+    /* Warna Washi (Background ala kertas) 
     --washi: #F9F9F8;
     --washi-dark: #F0F0EE;
 
-    /* Warna Sumi (Tinta tegas) */
+    /* Warna Sumi (Tinta tegas) 
     --sumi: #1C1C1E;
     --sumi-light: #2C2C2E;
     --sumi-muted: #8E8E93;
 
-    /* Transparansi khusus untuk border/bayangan (Sumi dengan opacity 10%) */
+    /* Transparansi khusus untuk border/bayangan (Sumi dengan opacity 10%) 
     --sumi-alpha-10: rgba(28, 28, 30, 0.1);
 
-    /* Warna Aksen */
+    /* Warna Aksen 
     --matcha: #E4E8D6;
+  } */
+
+@layer base {
+  :root {
+    --washi: 255 255 255;
+    /* #ffffff */
+    --washi-dark: 247 246 242;
+    /* #f7f6f2 — off-white lembut */
+    --sumi: 28 28 30;
+    /* #1c1c1e */
+    --sumi-light: 80 80 84;
+    /* #505054 */
+    --sumi-muted: 142 142 147;
+    /* #8e8e93 */
+    --sumi-10: 28 28 30;
+    /* dipakai sbg border-sumi-10 = rgb(28 28 30 / 0.10) */
   }
 
-  /* Set default warna body biar otomatis Jepang minimalis */
+  /* Dark mode — semua token di-flip */
+  .dark {
+    --washi: 18 18 20;
+    /* #121214 — hitam lembut, bukan pure black */
+    --washi-dark: 26 26 30;
+    /* #1a1a1e — surface card */
+    --sumi: 242 242 245;
+    /* #f2f2f5 — teks terang */
+    --sumi-light: 180 180 188;
+    /* #b4b4bc */
+    --sumi-muted: 110 110 118;
+    /* #6e6e76 */
+    --sumi-10: 242 242 245;
+    /* border = rgb(242 242 245 / 0.10) */
+  }
+
   body {
     background-color: var(--washi);
     color: var(--sumi);
   }
+
 }
+
+/* ─── Transisi smooth saat toggle ───────────────────────────────────────────
+   Hanya color properties — tidak memperlambat transform / layout.
+*/
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Matikan transisi untuk elemen yang tidak perlu (animasi, spinner) */
+.notransition,
+.animate-spin,
+.animate-pulse,
+[data-no-transition] {
+  transition: none !important;
+}
+
+/* ─── Scrollbar styling ──────────────────────────────────────────────────────
+   Tipis dan konsisten di semua halaman.
+*/
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--sumi-10) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--sumi-10) / 0.5);
+}
+
+/* Helper class untuk komponen yang mau hide scrollbar tapi tetap scrollable */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Set default warna body biar otomatis Jepang minimalis */
+
 
 @layer utilities {
 
