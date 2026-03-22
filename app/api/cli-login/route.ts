@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 
-// Token berlaku 30 hari
 const TOKEN_TTL_DAYS = 30;
 
 function generateCliToken(): string {
@@ -27,7 +26,7 @@ export async function POST(req: Request) {
                 id: true,
                 name: true,
                 handle: true,
-                password: true,
+                password: true,   // field "password" — bukan "hashedPassword"
             },
         });
 
@@ -38,7 +37,14 @@ export async function POST(req: Request) {
             );
         }
 
-        const valid = await bcrypt.compare(password, user.password);
+        // Handle dua kemungkinan:
+        // 1. Password di-hash bcrypt (format $2b$... atau $2a$...)
+        // 2. Password plain text (belum di-hash)
+        const isBcrypt = user.password.startsWith("$2b$") || user.password.startsWith("$2a$");
+        const valid = isBcrypt
+            ? await bcrypt.compare(password, user.password)
+            : password === user.password;
+
         if (!valid) {
             return NextResponse.json(
                 { message: "Email atau password salah." },
@@ -46,7 +52,7 @@ export async function POST(req: Request) {
             );
         }
 
-        // Generate token baru + expiry
+        // Generate token baru + expiry 30 hari
         const token = generateCliToken();
         const expiry = new Date();
         expiry.setDate(expiry.getDate() + TOKEN_TTL_DAYS);
