@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkCliToken } from "@/lib/checkCliToken";
 
 export async function POST(req: Request) {
     try {
         const authHeader = req.headers.get('authorization');
-        const token = authHeader?.split(' ')[1];
-        if (!token) return NextResponse.json({ message: "Akses ditolak." }, { status: 401 });
+        // const token = authHeader?.split(' ')[1];
+        // if (!token) return NextResponse.json({ message: "Akses ditolak." }, { status: 401 });
+        const { user, error } = await checkCliToken(req);
+        if (error) return error
 
-        const user = await prisma.user.findUnique({ where: { cliToken: token } });
+        // const user = await prisma.user.findUnique({ where: { cliToken: token } });
         if (!user) return NextResponse.json({ message: "Sesi tidak valid." }, { status: 401 });
 
         const { folderName } = await req.json();

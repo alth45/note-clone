@@ -37,6 +37,8 @@ model User {
 
   followers Follow[] @relation("UserFollowers")
   following Follow[] @relation("UserFollowing")
+
+  cliTokenExpiry DateTime?
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

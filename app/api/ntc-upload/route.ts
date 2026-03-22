@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkCliToken } from "@/lib/checkCliToken";
 
 // --- THE FAST PARSER ENGINE V4 (Anti-Potong Kodingan Python) ---
 function parseNtcToHtml(rawText: string) {
@@ -114,16 +115,17 @@ function parseNtcToHtml(rawText: string) {
 export async function POST(req: Request) {
     try {
         const authHeader = req.headers.get('authorization');
-        const token = authHeader?.split(' ')[1];
+        // const token = authHeader?.split(' ')[1];
+        const { user, error } = await checkCliToken(req);
+        if (error) return error;
+        // if (!token) {
+        //     return NextResponse.json({ message: "Akses ditolak. Token tidak ditemukan." }, { status: 401 });
+        // }
 
-        if (!token) {
-            return NextResponse.json({ message: "Akses ditolak. Token tidak ditemukan." }, { status: 401 });
-        }
-
-        // --- PERUBAHAN UTAMA: CARI USER BERDASARKAN TOKEN ---
-        const user = await prisma.user.findUnique({
-            where: { cliToken: token }
-        });
+        // // --- PERUBAHAN UTAMA: CARI USER BERDASARKAN TOKEN ---
+        // const user = await prisma.user.findUnique({
+        //     where: { cliToken: token }
+        // });
 
         // Kalau tokennya nggak valid / nggak ada di DB
         if (!user) {
