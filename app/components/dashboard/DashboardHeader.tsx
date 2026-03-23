@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {
-    PenSquare, Settings, Camera, Save, X, BarChart2, BookOpen,
+    PenSquare, Settings, Camera, Save, X, BarChart2, BookOpen, TrendingUp,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -27,6 +27,8 @@ export default function DashboardHeader({
     onEditName, onEditHandle, onEditBio,
     onStartEdit, onSave, onCancel, onCreatePost,
 }: DashboardHeaderProps) {
+    const handle = user?.handle;
+
     return (
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-12 pb-12 border-b border-sumi-10 mt-8">
 
@@ -119,13 +121,21 @@ export default function DashboardHeader({
                         >
                             <BarChart2 size={16} /> Analitik
                         </Link>
-                        {/* ── Tombol Series yang baru ── */}
                         <Link
                             href="/dashboard/series"
                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-sumi-10 text-sm font-medium text-sumi hover:bg-sumi/5 transition-colors"
                         >
                             <BookOpen size={16} /> Series
                         </Link>
+                        {/* ── Creator Stats — hanya tampil kalau sudah punya handle ── */}
+                        {handle && (
+                            <Link
+                                href={`/creator/${handle}`}
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-sumi-10 text-sm font-medium text-sumi hover:bg-sumi/5 transition-colors"
+                            >
+                                <TrendingUp size={16} /> Creator
+                            </Link>
+                        )}
                         <button
                             onClick={() => signOut({ callbackUrl: "/" })}
                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-red-200 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
