@@ -1,10 +1,8 @@
 "use client";
 
-// components/dashboard/DashboardHeader.tsx
-
 import Link from "next/link";
 import {
-    PenSquare, Settings, Camera, Save, X, BarChart2,
+    PenSquare, Settings, Camera, Save, X, BarChart2, BookOpen,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -120,6 +118,13 @@ export default function DashboardHeader({
                             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-sumi-10 text-sm font-medium text-sumi hover:bg-sumi/5 transition-colors"
                         >
                             <BarChart2 size={16} /> Analitik
+                        </Link>
+                        {/* ── Tombol Series yang baru ── */}
+                        <Link
+                            href="/dashboard/series"
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-sumi-10 text-sm font-medium text-sumi hover:bg-sumi/5 transition-colors"
+                        >
+                            <BookOpen size={16} /> Series
                         </Link>
                         <button
                             onClick={() => signOut({ callbackUrl: "/" })}
