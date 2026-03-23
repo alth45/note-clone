@@ -27,6 +27,7 @@ model User {
   cliToken      String?   @unique // Token rahasia buat nge-push file
   comments      Comment[]
   deletelog     DeleteLog[]
+  series        Series[]
   
   notifications     Notification[] @relation("UserNotifications")
   actorNotifications Notification[] @relation("UserActorNotifications")
@@ -112,11 +113,12 @@ model Post {
   folder     Folder?  @relation(fields: [folderId], references: [id], onDelete: Cascade)
   views       Int      @default(0)
   likesCount  Int       @default(0) // Biar gampang ngitung total like
-  likes       Like[]
-  bookmarks   Bookmark[]
-  tags   String[]  @default([])
-  comments    Comment[]
+  likes             Like[]
+  bookmarks         Bookmark[]
+  tags              String[]  @default([])
+  comments          Comment[]
   notifications     Notification[]
+  seriesPosts       SeriesPost[]
   
 
   createdAt  DateTime @default(now())
@@ -222,4 +224,40 @@ model DeleteLog {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model Series {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  slug        String       @unique
+  published   Boolean      @default(false)
+
+  authorId    String
+  author      User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  posts       SeriesPost[]
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([authorId])
+  @@index([slug])
+}
+
+// Junction table — satu artikel bisa masuk banyak series,
+// satu series bisa punya banyak artikel. order diatur manual.
+model SeriesPost {
+  id       String @id @default(cuid())
+  order    Int    // urutan manual, mulai dari 1
+
+  seriesId String
+  postId   String
+
+  series   Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, postId])   // satu artikel hanya sekali per series
+  @@unique([seriesId, order])    // urutan unik per series
+  @@index([postId])
 }
