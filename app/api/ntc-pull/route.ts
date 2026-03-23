@@ -2,65 +2,71 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkCliToken } from "@/lib/checkCliToken";
 
+const MAX_TAKE = 50;
+
 export async function GET(req: Request) {
     try {
-        const authHeader = req.headers.get('authorization');
-        // const token = authHeader?.split(' ')[1];
-        // if (!token) return NextResponse.json({ message: "Akses ditolak." }, { status: 401 });
         const { user, error } = await checkCliToken(req);
         if (error) return error;
-        // const user = await prisma.user.findUnique({ where: { cliToken: token } });
-        // if (!user) return NextResponse.json({ message: "Sesi tidak valid." }, { status: 401 });
 
         const { searchParams } = new URL(req.url);
-        const mode = searchParams.get('mode') || 'all';
+        const mode = searchParams.get("mode") || "all";
 
-        let posts = [];
+        let posts: any[] = [];
 
-        // LOGIKA 1: Tarik Spesifik Slug
-        // LOGIKA 1: Tarik Spesifik Slug
-        if (mode === 'single') {
-            const slug = searchParams.get('slug');
-
-            // --- FIX TYPESCRIPT: Pastikan slug tidak null ---
+        if (mode === "single") {
+            const slug = searchParams.get("slug");
             if (!slug) {
-                return NextResponse.json({ message: "Slug wajib diisi untuk menarik 1 file." }, { status: 400 });
+                return NextResponse.json(
+                    { message: "Slug wajib diisi untuk menarik 1 file." },
+                    { status: 400 }
+                );
             }
 
             posts = await prisma.post.findMany({
-                where: {
-                    authorId: user.id,
-                    slug: slug // Sekarang TypeScript udah yakin 100% ini string
-                }
+                where: { authorId: user.id, slug },
             });
-        }
-        // LOGIKA 2: Tarik Range (rg 1-3)
-        else if (mode === 'range') {
-            const skip = parseInt(searchParams.get('skip') || '0');
-            const take = parseInt(searchParams.get('take') || '10');
+
+        } else if (mode === "range") {
+            // Validasi skip dan take — cegah nilai negatif atau terlalu besar
+            const rawSkip = parseInt(searchParams.get("skip") || "0");
+            const rawTake = parseInt(searchParams.get("take") || "10");
+
+            const skip = Math.max(0, isNaN(rawSkip) ? 0 : rawSkip);
+            const take = Math.min(MAX_TAKE, Math.max(1, isNaN(rawTake) ? 10 : rawTake));
+
             posts = await prisma.post.findMany({
                 where: { authorId: user.id },
-                orderBy: { updatedAt: 'desc' }, // Ambil dari yang paling baru diupdate
-                skip: skip,
-                take: take
+                orderBy: { updatedAt: "desc" },
+                skip,
+                take,
             });
-        }
-        // LOGIKA 3: Tarik Semua (ntc pull)
-        else {
+
+        } else {
+            // mode = all
             posts = await prisma.post.findMany({
                 where: { authorId: user.id },
-                orderBy: { updatedAt: 'desc' }
+                orderBy: { updatedAt: "desc" },
             });
         }
 
         if (posts.length === 0) {
-            return NextResponse.json({ message: "Tidak ada data yang ditemukan." }, { status: 404 });
+            return NextResponse.json(
+                { message: "Tidak ada data yang ditemukan." },
+                { status: 404 }
+            );
         }
 
-        return NextResponse.json({ message: "Berhasil menarik data.", posts }, { status: 200 });
+        return NextResponse.json(
+            { message: "Berhasil menarik data.", posts },
+            { status: 200 }
+        );
 
     } catch (error) {
         console.error("NTC Pull Error:", error);
-        return NextResponse.json({ message: "Gagal menarik data dari server." }, { status: 500 });
+        return NextResponse.json(
+            { message: "Gagal menarik data dari server." },
+            { status: 500 }
+        );
     }
 }

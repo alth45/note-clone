@@ -38,6 +38,18 @@ export default function Navbar() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
+    // ── Buka CommandPalette via keyboard event ────────────────────────────────
+    // CommandPalette sudah listen Ctrl+K secara global di component-nya sendiri.
+    // Kita trigger event yang sama supaya tidak perlu duplikasi state.
+    function openCommandPalette() {
+        const event = new KeyboardEvent("keydown", {
+            key: "k",
+            ctrlKey: true,
+            bubbles: true,
+        });
+        document.dispatchEvent(event);
+    }
+
     return (
         <header className="
             sticky top-0 z-50
@@ -54,13 +66,18 @@ export default function Navbar() {
 
                 <div className="flex items-center gap-1">
 
-                    {/* Search */}
-                    <button className="
-                        flex items-center gap-2 px-2 py-1.5 rounded-lg
-                        text-[#8e8e93] hover:text-[#1c1c1e] dark:hover:text-[#f2f2f5]
-                        hover:bg-black/5 dark:hover:bg-white/5
-                        transition-colors
-                    ">
+                    {/* Search — terhubung ke CommandPalette */}
+                    <button
+                        onClick={openCommandPalette}
+                        className="
+                            flex items-center gap-2 px-2 py-1.5 rounded-lg
+                            text-[#8e8e93] hover:text-[#1c1c1e] dark:hover:text-[#f2f2f5]
+                            hover:bg-black/5 dark:hover:bg-white/5
+                            transition-colors
+                        "
+                        aria-label="Buka pencarian (Ctrl+K)"
+                        title="Buka pencarian (Ctrl+K)"
+                    >
                         <Search size={18} />
                         <span className="
                             text-xs font-medium hidden sm:block

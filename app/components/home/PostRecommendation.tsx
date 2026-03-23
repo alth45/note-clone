@@ -2,20 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { TrendingUp, ChevronRight, X, PlayCircle, Info, Eye } from "lucide-react"; // Tambah icon Eye buat views
+import { TrendingUp, ChevronRight, X, Eye } from "lucide-react";
 
 export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // 1. FILTERING KEJAM: Hanya ambil post yang di-publish & Views > 20!
     const popularPosts = posts
         .filter(post => post.published && (post.views || 0) > 20)
-        .sort((a, b) => (b.views || 0) - (a.views || 0)); // Urutkan dari yang paling viral
+        .sort((a, b) => (b.views || 0) - (a.views || 0));
 
-    // 2. KONDISI BRUTAL: Kalau gak ada artikel yang tembus 20 views, Widget ini MENGHILANG!
     if (popularPosts.length === 0) return null;
 
-    // 3. Olah data buat Sidebar (Ambil 4 teratas)
     const sidebarPicks = popularPosts.slice(0, 4).map(post => ({
         id: post.id,
         slug: post.slug,
@@ -24,7 +21,6 @@ export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
         image: post.coverImage || "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?q=80&w=400&auto=format&fit=crop"
     }));
 
-    // 4. Olah data buat Modal (Dibelah dua biar UI Slidernya penuh)
     const half = Math.ceil(popularPosts.length / 2);
     const trendingTech = popularPosts.slice(0, half);
     const eksplorasi = popularPosts.slice(half);
@@ -42,7 +38,6 @@ export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
         }
     ];
 
-    // Kalau data cukup banyak, kita bikin kategori kedua
     if (eksplorasi.length > 0) {
         modalData.push({
             category: "Paling Banyak Dibaca",
@@ -58,10 +53,9 @@ export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
 
     return (
         <>
-            {/* --- TAMPILAN SIDEBAR NORMAL --- */}
+            {/* --- TAMPILAN SIDEBAR --- */}
             <aside className="hidden lg:block w-72 xl:w-80 shrink-0">
                 <div className="sticky top-28">
-
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-xs font-bold text-sumi-muted uppercase tracking-widest flex items-center gap-2">
                             <TrendingUp size={14} className="text-emerald-500" /> Pilihan Editor
@@ -87,7 +81,6 @@ export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-sumi/90 via-sumi/30 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
-
                                 <div className="absolute bottom-3 left-3 right-3 flex flex-col gap-1">
                                     <h4 className="text-xs font-bold text-washi leading-snug line-clamp-2">
                                         {post.title}
@@ -102,7 +95,7 @@ export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
                 </div>
             </aside>
 
-            {/* --- MODAL POP-UP (LIGHT THEME) --- */}
+            {/* --- MODAL --- */}
             {isModalOpen && (
                 <>
                     <div
@@ -128,14 +121,15 @@ export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
                         <div className="p-6 overflow-y-auto max-h-[75vh] scrollbar-hide">
                             {modalData.map((category, index) => (
                                 <div key={index} className="mb-8 last:mb-2">
-                                    <h3 className="text-base font-bold mb-3 text-sumi flex items-center justify-between">
+                                    <h3 className="text-base font-bold mb-3 text-sumi">
                                         {category.category}
                                     </h3>
 
                                     <div className="flex overflow-x-auto gap-4 pb-4 snap-x scrollbar-hide">
                                         {category.items.map((item) => (
+                                            // ✅ FIX: /read/ → /post/
                                             <Link
-                                                href={`/read/${item.slug}`}
+                                                href={`/post/${item.slug}`}
                                                 key={item.id}
                                                 className="group shrink-0 w-[220px] md:w-[260px] snap-start relative rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-[0_8px_30px_rgb(28,28,30,0.12)] bg-washi border border-sumi-10 flex flex-col"
                                             >
@@ -145,17 +139,9 @@ export default function PostRecommendation({ posts = [] }: { posts?: any[] }) {
                                                         alt={item.title}
                                                         className="w-full h-full object-cover"
                                                     />
-                                                    <div className="absolute inset-0 bg-sumi/5 group-hover:bg-transparent transition-colors" />
                                                 </div>
-
                                                 <div className="p-3 bg-washi group-hover:bg-washi-dark transition-colors flex-1 flex flex-col justify-between">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <PlayCircle size={16} className="text-sumi-muted group-hover:text-sumi transition-colors" />
-                                                            <Info size={16} className="text-sumi-muted/60 group-hover:text-sumi transition-colors" />
-                                                        </div>
-                                                        <h4 className="font-bold text-sm text-sumi line-clamp-1 mt-2">{item.title}</h4>
-                                                    </div>
+                                                    <h4 className="font-bold text-sm text-sumi line-clamp-1 mt-2">{item.title}</h4>
                                                     <div className="flex items-center gap-2 mt-3 text-[10px] font-bold text-sumi-muted">
                                                         <span className="text-emerald-600 flex items-center gap-1">
                                                             <Eye size={10} /> {item.views} Dilihat
