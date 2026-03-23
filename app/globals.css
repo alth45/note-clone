@@ -1,201 +1,20 @@
 @import "tailwindcss";
+/* @import "tailwindcss"; */
 @plugin "@tailwindcss/typography";
-/* 
- :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-} 
-} */
 
 @layer base {
   :root {
-    /* Warna Washi (Background ala kertas) */
     --washi: #F9F9F8;
     --washi-dark: #F0F0EE;
-
-    /* Warna Sumi (Tinta tegas)  */
     --sumi: #1C1C1E;
     --sumi-light: #2C2C2E;
     --sumi-muted: #8E8E93;
-
-    /* Transparansi khusus untuk border/bayangan (Sumi dengan opacity 10%)  */
     --sumi-alpha-10: rgba(28, 28, 30, 0.1);
-
-    /* Warna Aksen  */
     --matcha: #E4E8D6;
   }
 }
 
-
-/* ============================================================================== */
-/* @layer base {
-  :root {
-    --washi: 255 255 255; */
-/* #ffffff 
-    --washi-dark: 247 246 242;
-    /* #f7f6f2 — off-white lembut 
-    --sumi: 28 28 30;
-    /* #1c1c1e 
-    --sumi-light: 80 80 84;
-    /* #505054 
-    --sumi-muted: 142 142 147;
-    /* #8e8e93 
-    --sumi-10: 28 28 30;
-    /* dipakai sbg border-sumi-10 = rgb(28 28 30 / 0.10) 
-  }
-
-  /* Dark mode — semua token di-flip 
-  .dark {
-    --washi: 18 18 20;
-    /* #121214 — hitam lembut, bukan pure black 
-    --washi-dark: 26 26 30;
-    /* #1a1a1e — surface card 
-    --sumi: 242 242 245;
-    /* #f2f2f5 — teks terang 
-    --sumi-light: 180 180 188;
-    /* #b4b4bc 
-    --sumi-muted: 110 110 118;
-    /* #6e6e76 
-    --sumi-10: 242 242 245;
-    /* border = rgb(242 242 245 / 0.10) 
-  }
-
-  body {
-    background-color: var(--washi);
-    color: var(--sumi);
-  }
-
-}
-
-/* ─── Transisi smooth saat toggle ───────────────────────────────────────────
-   Hanya color properties — tidak memperlambat transform / layout.
-
-*,
-*::before,
-*::after {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 150ms;
-  transition-timing-function: ease;
-}
-
-/* Matikan transisi untuk elemen yang tidak perlu (animasi, spinner) 
-.notransition,
-.animate-spin,
-.animate-pulse,
-[data-no-transition] {
-  transition: none !important;
-}
-
-/* ─── Scrollbar styling ──────────────────────────────────────────────────────
-   Tipis dan konsisten di semua halaman.
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgb(var(--sumi-10) / 0.3);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgb(var(--sumi-10) / 0.5);
-}
-
-/* Helper class untuk komponen yang mau hide scrollbar tapi tetap scrollable 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-} 
-=====================================================
-/* Set default warna body biar otomatis Jepang minimalis */
-
-
-/* ── Base styles ───────────────────────────────────────────────────────────
-@layer base {
-  html {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  body {
-    @apply bg-white text-[#1c1c1e];
-  }
-
-  .dark body {
-    @apply bg-[#121214] text-[#f2f2f5];
-  }
-}
-
-/* ── Dark mode transition ────────────────────────────────────────────────── */
-/* Hanya color properties, tidak ganggu layout/transform 
-html.transitioning *,
-html.transitioning *::before,
-html.transitioning *::after {
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease !important;
-}
-
-/* ── Scrollbar ────────────────────────────────────────────────────────────── 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 3px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-} */
-
-
 @layer utilities {
-
-  /* --- Background Classes --- */
   .bg-washi {
     background-color: var(--washi);
   }
@@ -216,7 +35,6 @@ html.transitioning *::after {
     background-color: var(--matcha);
   }
 
-  /* --- Text Classes --- */
   .text-washi {
     color: var(--washi);
   }
@@ -237,7 +55,6 @@ html.transitioning *::after {
     color: var(--matcha);
   }
 
-  /* --- Border Classes --- */
   .border-sumi {
     border-color: var(--sumi);
   }
@@ -245,19 +62,26 @@ html.transitioning *::after {
   .border-sumi-10 {
     border-color: var(--sumi-alpha-10);
   }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Tiptap Placeholder Style */
+/* Tiptap placeholder */
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
   color: rgb(161 161 170 / 0.6);
-  /* Warna sumi-muted transparan */
   pointer-events: none;
   height: 0;
 }
 
-/* Hilangin border biru bawaan browser pas lagi ngetik */
 .tiptap:focus {
   outline: none;
 }

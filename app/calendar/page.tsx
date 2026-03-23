@@ -1,47 +1,73 @@
 import { ChevronLeft, ChevronRight, FileText, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import prisma from "@/lib/prisma";
 
-// Simulasi Data Kalender untuk Februari 2026
-const februaryData = Array.from({ length: 28 }, (_, i) => {
-    const date = i + 1;
-    let posts = 0;
-    let image = null;
-    let slug = null;
-
-    // Data postingan dummy sesuai tanggal
-    if (date === 10) {
-        posts = 1;
-        image = "https://images.unsplash.com/photo-1560958089-b8a1929cea89?q=80&w=400&auto=format&fit=crop";
-        slug = "evolusi-kendaraan-listrik";
-    }
-    if (date === 15) {
-        posts = 2;
-        image = "https://images.unsplash.com/photo-1593640408182-31c70c8268f5?q=80&w=400&auto=format&fit=crop";
-        slug = "merakit-ekosistem-komputer";
-    }
-    if (date === 20) {
-        posts = 1;
-        image = "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=400&auto=format&fit=crop";
-        slug = "revolusi-data-dan-ai";
-    }
-    if (date === 24) {
-        posts = 3;
-        image = "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=400&auto=format&fit=crop";
-        slug = "arsitektur-sistem-terdistribusi";
-    }
-
-    return { date, posts, image, slug };
-});
+export const dynamic = "force-dynamic";
 
 const daysOfWeek = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 
-export default function CalendarPage() {
+function getMonthName(month: number): string {
+    const names = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+    ];
+    return names[month];
+}
+
+export default async function CalendarPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ month?: string; year?: string }>;
+}) {
+    const { month: monthParam, year: yearParam } = await searchParams;
+
+    const now = new Date();
+    const year = yearParam ? parseInt(yearParam) : now.getFullYear();
+    const month = monthParam ? parseInt(monthParam) : now.getMonth();
+
+    const startOfMonth = new Date(year, month, 1);
+    const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
+    const daysInMonth = endOfMonth.getDate();
+    const firstDayOfMonth = startOfMonth.getDay();
+
+    // Ambil semua artikel published di bulan ini dari DB
+    const posts = await prisma.post.findMany({
+        where: {
+            published: true,
+            updatedAt: {
+                gte: startOfMonth,
+                lte: endOfMonth,
+            },
+        },
+        select: {
+            id: true,
+            title: true,
+            slug: true,
+            coverImage: true,
+            updatedAt: true,
+        },
+        orderBy: { updatedAt: "asc" },
+    });
+
+    // Kelompokkan artikel per tanggal
+    const postsByDay = new Map<number, typeof posts>();
+    for (const post of posts) {
+        const day = new Date(post.updatedAt).getDate();
+        if (!postsByDay.has(day)) postsByDay.set(day, []);
+        postsByDay.get(day)!.push(post);
+    }
+
+    // Navigasi bulan prev/next
+    const prevDate = new Date(year, month - 1, 1);
+    const nextDate = new Date(year, month + 1, 1);
+    const prevHref = `?month=${prevDate.getMonth()}&year=${prevDate.getFullYear()}`;
+    const nextHref = `?month=${nextDate.getMonth()}&year=${nextDate.getFullYear()}`;
+
     return (
         <div className="min-h-screen bg-washi px-4 py-8 md:p-12 max-w-4xl mx-auto">
 
-            {/* --- HEADER HALAMAN --- */}
+            {/* Header */}
             <div className="flex items-center justify-between mb-8 pb-4 border-b border-sumi-10">
-                {/* Tombol Back ke Home */}
                 <Link
                     href="/"
                     className="p-2 rounded-full text-sumi-muted hover:text-sumi hover:bg-sumi/10 transition-colors bg-washi border border-sumi-10 shadow-sm"
@@ -49,25 +75,31 @@ export default function CalendarPage() {
                     <ArrowLeft size={20} />
                 </Link>
 
-                {/* Kontrol Bulan */}
                 <div className="flex items-center gap-2 md:gap-4">
-                    <button className="p-2 hover:bg-sumi/5 rounded-full transition-colors text-sumi-muted hover:text-sumi">
+                    <Link
+                        href={prevHref}
+                        className="p-2 hover:bg-sumi/5 rounded-full transition-colors text-sumi-muted hover:text-sumi"
+                    >
                         <ChevronLeft size={20} />
-                    </button>
-                    <h1 className="text-xl md:text-2xl font-bold tracking-tight text-sumi">Februari 2026</h1>
-                    <button className="p-2 hover:bg-sumi/5 rounded-full transition-colors text-sumi-muted hover:text-sumi">
+                    </Link>
+                    <h1 className="text-xl md:text-2xl font-bold tracking-tight text-sumi">
+                        {getMonthName(month)} {year}
+                    </h1>
+                    <Link
+                        href={nextHref}
+                        className="p-2 hover:bg-sumi/5 rounded-full transition-colors text-sumi-muted hover:text-sumi"
+                    >
                         <ChevronRight size={20} />
-                    </button>
+                    </Link>
                 </div>
 
-                {/* Spacer transparan biar flex justify-between nya tetap di tengah */}
-                <div className="w-10"></div>
+                <div className="w-10" />
             </div>
 
-            {/* --- AREA GRID KALENDER --- */}
+            {/* Grid kalender */}
             <div className="bg-washi">
 
-                {/* Baris Nama Hari */}
+                {/* Nama hari */}
                 <div className="grid grid-cols-7 gap-2 mb-4">
                     {daysOfWeek.map((day, idx) => (
                         <div key={idx} className="text-center text-[10px] md:text-xs font-bold text-sumi-muted uppercase tracking-widest">
@@ -76,37 +108,50 @@ export default function CalendarPage() {
                     ))}
                 </div>
 
-                {/* Grid Tanggal */}
+                {/* Grid tanggal */}
                 <div className="grid grid-cols-7 gap-2 md:gap-3">
-                    {februaryData.map((day) => {
-                        const hasPosts = day.posts > 0;
 
-                        // Konten dalam setiap kotak tanggal (Biar kodenya nggak berulang)
+                    {/* Kotak kosong sebelum hari pertama */}
+                    {Array.from({ length: firstDayOfMonth }).map((_, idx) => (
+                        <div key={`blank-${idx}`} className="aspect-square" />
+                    ))}
+
+                    {/* Tanggal */}
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                        const date = i + 1;
+                        const dayPosts = postsByDay.get(date) ?? [];
+                        const hasPosts = dayPosts.length > 0;
+                        const firstPost = dayPosts[0];
+                        const coverImage = firstPost?.coverImage ||
+                            "https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=400&auto=format&fit=crop";
+
+                        const cardClasses = `group relative aspect-square rounded-xl overflow-hidden flex flex-col justify-between p-2 md:p-3 transition-all duration-300 ${hasPosts
+                            ? "cursor-pointer shadow-sm hover:shadow-lg hover:scale-[1.05] z-10 border border-sumi-10"
+                            : "bg-washi border border-sumi-10/50"
+                            }`;
+
                         const CardContent = (
                             <>
-                                {/* Background Gambar jika ada postingan */}
-                                {hasPosts && day.image && (
+                                {hasPosts && (
                                     <>
                                         <img
-                                            src={day.image}
-                                            alt={`Posts on Feb ${day.date}`}
+                                            src={coverImage}
+                                            alt={firstPost.title}
                                             className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out"
                                         />
                                         <div className="absolute inset-0 bg-sumi/60 group-hover:bg-sumi/50 transition-colors" />
                                     </>
                                 )}
 
-                                {/* Angka Tanggal */}
                                 <span className={`relative z-10 text-base md:text-xl font-bold leading-none ${hasPosts ? "text-washi" : "text-sumi-muted/60"}`}>
-                                    {day.date}
+                                    {date}
                                 </span>
 
-                                {/* Info Jumlah Postingan */}
                                 {hasPosts && (
                                     <div className="relative z-10 flex items-center gap-1 text-washi">
                                         <FileText size={10} className="opacity-80" />
                                         <span className="text-[9px] md:text-xs font-bold tracking-wide">
-                                            {day.posts}
+                                            {dayPosts.length}
                                             <span className="hidden md:inline"> POST</span>
                                         </span>
                                     </div>
@@ -114,31 +159,29 @@ export default function CalendarPage() {
                             </>
                         );
 
-                        // Styling dasar kotak
-                        const cardClasses = `group relative aspect-square rounded-xl overflow-hidden flex flex-col justify-between p-2 md:p-3 transition-all duration-300 ${hasPosts
-                                ? "cursor-pointer shadow-sm hover:shadow-lg hover:scale-[1.05] z-10 border border-sumi-10"
-                                : "bg-washi border border-sumi-10/50"
-                            }`;
-
-                        // Kalau ada post, bungkus pakai Link ke halaman artikel
-                        if (hasPosts && day.slug) {
+                        if (hasPosts && firstPost) {
                             return (
-                                <Link href={`/post/${day.slug}`} key={day.date} className={cardClasses}>
+                                <Link href={`/post/${firstPost.slug}`} key={date} className={cardClasses}>
                                     {CardContent}
                                 </Link>
                             );
                         }
 
-                        // Kalau nggak ada post, biarin jadi div biasa (nggak bisa diklik)
                         return (
-                            <div key={day.date} className={cardClasses}>
+                            <div key={date} className={cardClasses}>
                                 {CardContent}
                             </div>
                         );
                     })}
                 </div>
-
             </div>
+
+            {/* Summary */}
+            {posts.length > 0 && (
+                <p className="mt-6 text-center text-xs text-sumi-muted">
+                    {posts.length} artikel dipublikasikan di {getMonthName(month)} {year}
+                </p>
+            )}
         </div>
     );
 }
