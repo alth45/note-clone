@@ -25,6 +25,7 @@ model User {
   // --- TAMBAHAN BARU BUAT CLI ---
   cliToken      String?   @unique // Token rahasia buat nge-push file
   comments      Comment[]
+  deletelog     DeleteLog[]
   
   notifications     Notification[] @relation("UserNotifications")
   actorNotifications Notification[] @relation("UserActorNotifications")
@@ -206,4 +207,18 @@ enum NotificationType {
    @@index([recipientId, createdAt(sort: Desc)])
    @@index([recipientId, isRead])
    
+}
+
+model DeleteLog {
+  id          String   @id @default(cuid())
+  userId      String
+  folderName  String
+  folderId    String
+  postCount   Int
+  postTitles  String[] // Snapshot judul artikel yang dihapus
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

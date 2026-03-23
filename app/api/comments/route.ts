@@ -8,6 +8,12 @@ import {
     notifyNewReply,
 } from "@/lib/createNotification";
 
+// ─── Rate limit config ────────────────────────────────────────────────────────
+// Cooldown antar komentar per user (dalam ms)
+const COMMENT_COOLDOWN_MS = 5_000;       // 5 detik antar komentar
+const MAX_COMMENTS_PER_POST_PER_HOUR = 10; // max 10 komentar ke 1 artikel per jam
+const MAX_COMMENTS_PER_HOUR = 20;          // max 20 komentar ke semua artikel per jam
+
 // ─── Select shape yang konsisten ──────────────────────────────────────────────
 const COMMENT_SELECT = {
     id: true,
@@ -38,7 +44,6 @@ const COMMENT_SELECT = {
                     email: true,
                 },
             },
-            // replies dari replies tidak di-fetch (max depth = 2)
             _count: { select: { replies: true } },
         },
         orderBy: { createdAt: "asc" as const },
@@ -46,7 +51,75 @@ const COMMENT_SELECT = {
     _count: { select: { replies: true } },
 } as const;
 
-// GET /api/comments?postId=xxx
+// ─── Rate limit checker ───────────────────────────────────────────────────────
+async function checkRateLimit(
+    userId: string,
+    postId: string
+): Promise<{ limited: boolean; message: string }> {
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const cooldownStart = new Date(now.getTime() - COMMENT_COOLDOWN_MS);
+
+    // Query semua dalam satu Promise.all — tidak perlu tunggu satu per satu
+    const [lastComment, commentsThisPostThisHour, commentsThisHour] =
+        await Promise.all([
+            // 1. Komentar terakhir dari user ini (semua post) — cek cooldown
+            prisma.comment.findFirst({
+                where: { authorId: userId },
+                orderBy: { createdAt: "desc" },
+                select: { createdAt: true },
+            }),
+
+            // 2. Berapa komentar user ini ke post ini dalam 1 jam terakhir
+            prisma.comment.count({
+                where: {
+                    authorId: userId,
+                    postId,
+                    createdAt: { gte: oneHourAgo },
+                },
+            }),
+
+            // 3. Berapa total komentar user ini ke semua post dalam 1 jam terakhir
+            prisma.comment.count({
+                where: {
+                    authorId: userId,
+                    createdAt: { gte: oneHourAgo },
+                },
+            }),
+        ]);
+
+    // Cek cooldown — terlalu cepat komentar lagi
+    if (lastComment && lastComment.createdAt > cooldownStart) {
+        const sisaMs =
+            COMMENT_COOLDOWN_MS -
+            (now.getTime() - lastComment.createdAt.getTime());
+        const sisaDetik = Math.ceil(sisaMs / 1000);
+        return {
+            limited: true,
+            message: `Terlalu cepat. Tunggu ${sisaDetik} detik sebelum komentar lagi.`,
+        };
+    }
+
+    // Cek limit per post per jam
+    if (commentsThisPostThisHour >= MAX_COMMENTS_PER_POST_PER_HOUR) {
+        return {
+            limited: true,
+            message: `Terlalu banyak komentar di artikel ini. Coba lagi dalam 1 jam.`,
+        };
+    }
+
+    // Cek limit global per jam
+    if (commentsThisHour >= MAX_COMMENTS_PER_HOUR) {
+        return {
+            limited: true,
+            message: `Terlalu banyak komentar. Coba lagi dalam 1 jam.`,
+        };
+    }
+
+    return { limited: false, message: "" };
+}
+
+// ─── GET /api/comments?postId=xxx ─────────────────────────────────────────────
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
@@ -59,7 +132,6 @@ export async function GET(req: Request) {
             );
         }
 
-        // Hanya ambil top-level comments — replies sudah nested di dalam
         const comments = await prisma.comment.findMany({
             where: { postId, parentId: null },
             select: COMMENT_SELECT,
@@ -79,7 +151,7 @@ export async function GET(req: Request) {
     }
 }
 
-// POST /api/comments — tambah komentar baru
+// ─── POST /api/comments — tambah komentar baru ────────────────────────────────
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -92,6 +164,7 @@ export async function POST(req: Request) {
 
         const user = await prisma.user.findUnique({
             where: { email: session.user.email },
+            select: { id: true, name: true, handle: true, image: true, email: true },
         });
         if (!user) {
             return NextResponse.json(
@@ -103,7 +176,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { postId, content, parentId } = body;
 
-        // Validasi
+        // Validasi field wajib
         if (!postId || !content?.trim()) {
             return NextResponse.json(
                 { message: "postId dan content wajib diisi." },
@@ -131,6 +204,24 @@ export async function POST(req: Request) {
             );
         }
 
+        // ── Rate limit check ──────────────────────────────────────────────────
+        const { limited, message: limitMessage } = await checkRateLimit(
+            user.id,
+            postId
+        );
+        if (limited) {
+            return NextResponse.json(
+                { message: limitMessage },
+                {
+                    status: 429,
+                    headers: {
+                        // Beri tahu client kapan bisa coba lagi
+                        "Retry-After": String(Math.ceil(COMMENT_COOLDOWN_MS / 1000)),
+                    },
+                }
+            );
+        }
+
         // Kalau reply, pastikan parent exists di post yang sama
         if (parentId) {
             const parent = await prisma.comment.findFirst({
@@ -154,9 +245,9 @@ export async function POST(req: Request) {
             select: COMMENT_SELECT,
         });
 
+        // Fire-and-forget notifikasi — tidak boleh block response
         void (async () => {
             if (parentId) {
-                // Reply — notify author komentar yang di-reply
                 const parent = await prisma.comment.findUnique({
                     where: { id: parentId },
                     select: { authorId: true },
@@ -170,7 +261,6 @@ export async function POST(req: Request) {
                     });
                 }
             } else {
-                // Top-level — notify author artikel
                 const postRecord = await prisma.post.findUnique({
                     where: { id: postId },
                     select: { authorId: true },
@@ -185,7 +275,6 @@ export async function POST(req: Request) {
                 }
             }
         })();
-
 
         return NextResponse.json(comment, { status: 201 });
 
