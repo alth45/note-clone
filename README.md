@@ -326,3 +326,84 @@ export default defineConfig({
 *Total waktu yang dihabiskan: tidak perlu disebutkan. Yang penting: **berhasil.***
 
 *Dipersembahkan oleh seseorang yang sekarang sangat paham perbedaan antara Session Pooler dan Transaction Pooler di Supabase.* 🩸
+
+
+# COMING SOON
+
+
+
+# Setup OAuth (Google & GitHub) di NextAuth
+
+> **Catatan:** Gratis semua, tidak perlu bayar.
+
+## 🌐 Google OAuth
+
+1. Buka [console.cloud.google.com](https://console.cloud.google.com).
+2. Buat project baru (atau pakai project yang sudah ada).
+3. Di sidebar, navigasi ke **APIs & Services** → **Credentials**.
+4. Klik **Create Credentials** → **OAuth Client ID**.
+5. Pilih Application type → **Web application**.
+6. Di bagian **Authorized redirect URIs** tambahkan:
+   - `http://localhost:3000/api/auth/callback/google` *(untuk development)*
+   - `https://domain-lo.com/api/auth/callback/google` *(untuk production)*
+7. Klik **Create** → lo akan dapat `GOOGLE_CLIENT_ID` dan `GOOGLE_CLIENT_SECRET`.
+   
+*Note: Kalau baru pertama kali, biasanya lo bakal diminta setup **OAuth consent screen** dulu. Tinggal isi nama app, email, dan logo (opsional). Pilih tipe **External** kalau mau semua orang (publik) bisa login.*
+
+---
+
+## 🐙 GitHub OAuth
+
+1. Buka [github.com/settings/developers](https://github.com/settings/developers).
+2. Masuk ke menu **OAuth Apps** → Klik **New OAuth App**.
+3. Isi form pendaftaran aplikasi:
+   - **Application name:** *[nama app lo]*
+   - **Homepage URL:** `http://localhost:3000`
+   - **Authorization callback URL:** `http://localhost:3000/api/auth/callback/github`
+4. Klik **Register** → lo akan dapat `GITHUB_ID`.
+5. Klik **Generate a new client secret** → lo akan dapat `GITHUB_SECRET`.
+
+---
+
+## ⚙️ Konfigurasi Kode
+
+### 1. Setup Environment Variables
+Taruh kredensial yang udah lo dapetin ke dalam file `.env.local` di root folder project lo:
+
+```env
+GOOGLE_CLIENT_ID=xxx
+GOOGLE_CLIENT_SECRET=xxx
+GITHUB_ID=xxx
+GITHUB_SECRET=xxx
+```
+
+### 2. Update NextAuth Config
+Tambahkan *provider* Google dan GitHub ke dalam `authOptions` di file `app/api/auth/[...nextauth]/route.ts`:
+
+```typescript
+import GoogleProvider from "next-auth/providers/google";
+import GithubProvider from "next-auth/providers/github";
+
+// ... konfigurasi NextAuth lainnya
+
+providers: [
+    GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID!,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    GithubProvider({
+        clientId: process.env.GITHUB_ID!,
+        clientSecret: process.env.GITHUB_SECRET!,
+    }),
+    CredentialsProvider({ ... }), // provider yang sudah ada sebelumnya
+]
+```
+
+---
+
+## 🚀 Catatan Deployment
+
+Saat mau deploy aplikasi lo ke production:
+1. Ganti semua URL `localhost:3000` di setup Google Cloud Console & GitHub Developer Settings dengan **domain asli lo**.
+2. Jangan lupa tambahkan *environment variables* (ID dan Secret) yang sama di dashboard platform hosting lo (misal: Settings di dashboard Vercel).
+```
