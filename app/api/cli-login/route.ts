@@ -11,41 +11,73 @@ function generateCliToken(): string {
 
 export async function POST(req: Request) {
     try {
-        const { email, password } = await req.json();
+        const body = await req.json();
+        const { email, password } = body;
 
-        if (!email || !password) {
+        // Validasi input dasar
+        if (!email || typeof email !== "string" || !email.trim()) {
             return NextResponse.json(
-                { message: "Email dan password wajib diisi." },
+                { message: "Email wajib diisi." },
                 { status: 400 }
             );
         }
 
-        const user = await prisma.user.findUnique({
-            where: { email },
-            select: {
-                id: true,
-                name: true,
-                handle: true,
-                password: true,   // field "password" — bukan "hashedPassword"
-            },
-        });
+        if (!password || typeof password !== "string") {
+            return NextResponse.json(
+                { message: "Password wajib diisi." },
+                { status: 400 }
+            );
+        }
 
-        if (!user?.password) {
+        // Batasi panjang input — cegah bcrypt DoS
+        // bcrypt hanya memproses 72 karakter pertama, input lebih panjang
+        // dari itu tidak menambah keamanan tapi bisa dijadikan attack vector
+        if (password.length > 72) {
             return NextResponse.json(
                 { message: "Email atau password salah." },
                 { status: 401 }
             );
         }
 
-        // Handle dua kemungkinan:
-        // 1. Password di-hash bcrypt (format $2b$... atau $2a$...)
-        // 2. Password plain text (belum di-hash)
-        const isBcrypt = user.password.startsWith("$2b$") || user.password.startsWith("$2a$");
-        const valid = isBcrypt
-            ? await bcrypt.compare(password, user.password)
-            : password === user.password;
+        const user = await prisma.user.findUnique({
+            where: { email: email.trim().toLowerCase() },
+            select: {
+                id: true,
+                name: true,
+                handle: true,
+                password: true,
+            },
+        });
 
-        if (!valid) {
+        // Selalu jalankan bcrypt meskipun user tidak ditemukan —
+        // cegah timing attack yang bisa dipakai untuk enumerate email valid
+        const dummyHash = "$2b$12$invalidhashfortimingprotectiononly000000000000000000000";
+        const hashToCompare = user?.password ?? dummyHash;
+
+        // Tolak akun yang passwordnya bukan bcrypt — kemungkinan data lama
+        // yang belum di-hash. Paksa reset password daripada terima plain text.
+        const isBcrypt =
+            hashToCompare.startsWith("$2b$") ||
+            hashToCompare.startsWith("$2a$");
+
+        if (!isBcrypt) {
+            // Tetap jalankan compare dummy supaya timing-nya konsisten
+            await bcrypt.compare(password, dummyHash);
+            return NextResponse.json(
+                {
+                    message:
+                        "Akun ini memerlukan reset password. Silakan login via web dan perbarui password Anda.",
+                    requiresPasswordReset: true,
+                },
+                { status: 401 }
+            );
+        }
+
+        const valid = await bcrypt.compare(password, hashToCompare);
+
+        // Satu pesan error untuk semua kasus gagal —
+        // jangan bocorkan apakah email terdaftar atau tidak
+        if (!valid || !user) {
             return NextResponse.json(
                 { message: "Email atau password salah." },
                 { status: 401 }
