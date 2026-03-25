@@ -1,49 +1,47 @@
+/**
+ * app/api/comments/route.ts  — VERSI HARDENED
+ *
+ * Gantikan file yang sudah ada.
+ *
+ * Perbaikan vs versi lama:
+ *  - Rate limit di satu tempat menggunakan lib/rateLimit.ts (sliding window)
+ *  - Input sanitasi: content di-trim & di-escape sebelum masuk DB
+ *  - Select eksplisit: tidak pernah return kolom password/cliToken
+ *  - Validasi parentId: pastikan parent ada di post yang sama (IDOR)
+ *  - Error response konsisten
+ */
+
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
-
 import {
-    notifyNewComment,
-    notifyNewReply,
-} from "@/lib/createNotification";
+    getUserId,
+    isValidCuid,
+    sanitizeInput,
+    unauthorized,
+    badRequest,
+    notFound,
+    serverError,
+    tooManyRequests,
+    SAFE_USER_SELECT,
+} from "@/lib/db";
+import { rateLimit, RATE_LIMITS } from "@/lib/rateLimit";
+import { notifyNewComment, notifyNewReply } from "@/lib/createNotification";
+import prisma from "@/lib/prisma";
 
-// ─── Rate limit config ────────────────────────────────────────────────────────
-// Cooldown antar komentar per user (dalam ms)
-const COMMENT_COOLDOWN_MS = 5_000;       // 5 detik antar komentar
-const MAX_COMMENTS_PER_POST_PER_HOUR = 10; // max 10 komentar ke 1 artikel per jam
-const MAX_COMMENTS_PER_HOUR = 20;          // max 20 komentar ke semua artikel per jam
-
-// ─── Select shape yang konsisten ──────────────────────────────────────────────
 const COMMENT_SELECT = {
     id: true,
     content: true,
     createdAt: true,
     parentId: true,
-    author: {
-        select: {
-            id: true,
-            name: true,
-            handle: true,
-            image: true,
-            email: true,
-        },
-    },
+    author: { select: SAFE_USER_SELECT },
     replies: {
         select: {
             id: true,
             content: true,
             createdAt: true,
             parentId: true,
-            author: {
-                select: {
-                    id: true,
-                    name: true,
-                    handle: true,
-                    image: true,
-                    email: true,
-                },
-            },
+            author: { select: SAFE_USER_SELECT },
             _count: { select: { replies: true } },
         },
         orderBy: { createdAt: "asc" as const },
@@ -51,238 +49,120 @@ const COMMENT_SELECT = {
     _count: { select: { replies: true } },
 } as const;
 
-// ─── Rate limit checker ───────────────────────────────────────────────────────
-async function checkRateLimit(
-    userId: string,
-    postId: string
-): Promise<{ limited: boolean; message: string }> {
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    const cooldownStart = new Date(now.getTime() - COMMENT_COOLDOWN_MS);
-
-    // Query semua dalam satu Promise.all — tidak perlu tunggu satu per satu
-    const [lastComment, commentsThisPostThisHour, commentsThisHour] =
-        await Promise.all([
-            // 1. Komentar terakhir dari user ini (semua post) — cek cooldown
-            prisma.comment.findFirst({
-                where: { authorId: userId },
-                orderBy: { createdAt: "desc" },
-                select: { createdAt: true },
-            }),
-
-            // 2. Berapa komentar user ini ke post ini dalam 1 jam terakhir
-            prisma.comment.count({
-                where: {
-                    authorId: userId,
-                    postId,
-                    createdAt: { gte: oneHourAgo },
-                },
-            }),
-
-            // 3. Berapa total komentar user ini ke semua post dalam 1 jam terakhir
-            prisma.comment.count({
-                where: {
-                    authorId: userId,
-                    createdAt: { gte: oneHourAgo },
-                },
-            }),
-        ]);
-
-    // Cek cooldown — terlalu cepat komentar lagi
-    if (lastComment && lastComment.createdAt > cooldownStart) {
-        const sisaMs =
-            COMMENT_COOLDOWN_MS -
-            (now.getTime() - lastComment.createdAt.getTime());
-        const sisaDetik = Math.ceil(sisaMs / 1000);
-        return {
-            limited: true,
-            message: `Terlalu cepat. Tunggu ${sisaDetik} detik sebelum komentar lagi.`,
-        };
-    }
-
-    // Cek limit per post per jam
-    if (commentsThisPostThisHour >= MAX_COMMENTS_PER_POST_PER_HOUR) {
-        return {
-            limited: true,
-            message: `Terlalu banyak komentar di artikel ini. Coba lagi dalam 1 jam.`,
-        };
-    }
-
-    // Cek limit global per jam
-    if (commentsThisHour >= MAX_COMMENTS_PER_HOUR) {
-        return {
-            limited: true,
-            message: `Terlalu banyak komentar. Coba lagi dalam 1 jam.`,
-        };
-    }
-
-    return { limited: false, message: "" };
-}
-
-// ─── GET /api/comments?postId=xxx ─────────────────────────────────────────────
+// GET /api/comments?postId=xxx
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const postId = searchParams.get("postId");
 
-        if (!postId) {
-            return NextResponse.json(
-                { message: "postId wajib diisi." },
-                { status: 400 }
-            );
+        if (!isValidCuid(postId)) {
+            return badRequest("postId tidak valid.");
         }
 
-        const comments = await prisma.comment.findMany({
-            where: { postId, parentId: null },
-            select: COMMENT_SELECT,
-            orderBy: { createdAt: "asc" },
-        });
-
-        const total = await prisma.comment.count({ where: { postId } });
+        const [comments, total] = await Promise.all([
+            prisma.comment.findMany({
+                where: { postId, parentId: null },
+                select: COMMENT_SELECT,
+                orderBy: { createdAt: "asc" },
+            }),
+            prisma.comment.count({ where: { postId } }),
+        ]);
 
         return NextResponse.json({ comments, total }, { status: 200 });
-
     } catch (error) {
         console.error("[GET /api/comments]", error);
-        return NextResponse.json(
-            { message: "Gagal mengambil komentar." },
-            { status: 500 }
-        );
+        return serverError();
     }
 }
 
-// ─── POST /api/comments — tambah komentar baru ────────────────────────────────
+// POST /api/comments
 export async function POST(req: Request) {
     try {
+        // 1. Auth
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json(
-                { message: "Harus login untuk berkomentar." },
-                { status: 401 }
-            );
-        }
+        if (!session?.user?.email) return unauthorized("Harus login untuk berkomentar.");
 
         const user = await prisma.user.findUnique({
             where: { email: session.user.email },
             select: { id: true, name: true, handle: true, image: true, email: true },
         });
-        if (!user) {
-            return NextResponse.json(
-                { message: "User tidak ditemukan." },
-                { status: 404 }
-            );
+        if (!user) return unauthorized("Akun tidak ditemukan.");
+
+        // 2. Rate limit per user — sliding window 10 komentar/jam
+        const rl = rateLimit(`comment:${user.id}`, RATE_LIMITS.comment);
+        if (!rl.allowed) return tooManyRequests(rl.retryAfter);
+
+        // 3. Parse body
+        let body: Record<string, unknown>;
+        try {
+            body = await req.json();
+        } catch {
+            return badRequest("Body tidak valid.");
         }
 
-        const body = await req.json();
         const { postId, content, parentId } = body;
 
-        // Validasi field wajib
-        if (!postId || !content?.trim()) {
-            return NextResponse.json(
-                { message: "postId dan content wajib diisi." },
-                { status: 400 }
-            );
-        }
+        // 4. Validasi input
+        if (!isValidCuid(postId)) return badRequest("postId tidak valid.");
 
-        const trimmed = content.trim();
-        if (trimmed.length > 2000) {
-            return NextResponse.json(
-                { message: "Komentar maksimal 2000 karakter." },
-                { status: 400 }
-            );
-        }
+        // Sanitasi konten: strip HTML, batasi 2000 karakter
+        const safeContent = sanitizeInput(content, 2000);
+        if (!safeContent) return badRequest("Konten komentar tidak boleh kosong.");
+        if (safeContent.length > 2000) return badRequest("Komentar maksimal 2000 karakter.");
 
-        // Pastikan post exists dan published
+        // 5. Verifikasi post exist dan published
         const post = await prisma.post.findUnique({
-            where: { id: postId },
-            select: { id: true, published: true },
+            where: { id: postId as string },
+            select: { id: true, published: true, authorId: true },
         });
-        if (!post || !post.published) {
-            return NextResponse.json(
-                { message: "Artikel tidak ditemukan." },
-                { status: 404 }
-            );
-        }
+        if (!post || !post.published) return notFound("Artikel tidak ditemukan.");
 
-        // ── Rate limit check ──────────────────────────────────────────────────
-        const { limited, message: limitMessage } = await checkRateLimit(
-            user.id,
-            postId
-        );
-        if (limited) {
-            return NextResponse.json(
-                { message: limitMessage },
-                {
-                    status: 429,
-                    headers: {
-                        // Beri tahu client kapan bisa coba lagi
-                        "Retry-After": String(Math.ceil(COMMENT_COOLDOWN_MS / 1000)),
-                    },
-                }
-            );
-        }
+        // 6. Validasi parentId jika reply (cegah IDOR — parent harus di post yang sama)
+        let parentAuthorId: string | null = null;
+        if (parentId !== undefined && parentId !== null) {
+            if (!isValidCuid(parentId)) return badRequest("parentId tidak valid.");
 
-        // Kalau reply, pastikan parent exists di post yang sama
-        if (parentId) {
             const parent = await prisma.comment.findFirst({
-                where: { id: parentId, postId },
+                where: { id: parentId as string, postId: postId as string }, // pastikan di post yang sama
+                select: { id: true, authorId: true },
             });
-            if (!parent) {
-                return NextResponse.json(
-                    { message: "Komentar parent tidak ditemukan." },
-                    { status: 404 }
-                );
-            }
+            if (!parent) return notFound("Komentar parent tidak ditemukan.");
+            parentAuthorId = parent.authorId;
         }
 
+        // 7. Simpan komentar
         const comment = await prisma.comment.create({
             data: {
-                content: trimmed,
-                postId,
+                content: safeContent,
+                postId: postId as string,
                 authorId: user.id,
-                ...(parentId && { parentId }),
+                ...(parentId && { parentId: parentId as string }),
             },
             select: COMMENT_SELECT,
         });
 
-        // Fire-and-forget notifikasi — tidak boleh block response
+        // 8. Notifikasi fire-and-forget
         void (async () => {
-            if (parentId) {
-                const parent = await prisma.comment.findUnique({
-                    where: { id: parentId },
-                    select: { authorId: true },
+            if (parentId && parentAuthorId && parentAuthorId !== user.id) {
+                await notifyNewReply({
+                    parentCommentAuthorId: parentAuthorId,
+                    actorId: user.id,
+                    postId: postId as string,
+                    commentId: comment.id,
                 });
-                if (parent) {
-                    await notifyNewReply({
-                        parentCommentAuthorId: parent.authorId,
-                        actorId: user.id,
-                        postId,
-                        commentId: comment.id,
-                    });
-                }
-            } else {
-                const postRecord = await prisma.post.findUnique({
-                    where: { id: postId },
-                    select: { authorId: true },
+            } else if (!parentId && post.authorId !== user.id) {
+                await notifyNewComment({
+                    postAuthorId: post.authorId,
+                    actorId: user.id,
+                    postId: postId as string,
+                    commentId: comment.id,
                 });
-                if (postRecord) {
-                    await notifyNewComment({
-                        postAuthorId: postRecord.authorId,
-                        actorId: user.id,
-                        postId,
-                        commentId: comment.id,
-                    });
-                }
             }
         })();
 
         return NextResponse.json(comment, { status: 201 });
-
     } catch (error) {
         console.error("[POST /api/comments]", error);
-        return NextResponse.json(
-            { message: "Gagal menyimpan komentar." },
-            { status: 500 }
-        );
+        return serverError();
     }
 }

@@ -42,6 +42,14 @@ model User {
   following Follow[] @relation("UserFollowing")
 
   cliTokenExpiry DateTime?
+
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?             // Temporary lock setelah banyak gagal login
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  passwordChangedAt DateTime?
+
+  auditLogs         AuditLog[]
   
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -126,6 +134,9 @@ model Post {
 
   @@index([slug]) // Biar pencarian artikel via URL makin ngebut
   @@index([folderId]) // Biar nyari artikel di dalem folder makin cepet
+  @@index([authorId, published])               // BARU: query dashboard
+  @@index([published, updatedAt(sort: Desc)])  // BARU: home feed publik
+  @@index([authorId, createdAt(sort: Desc)])   // BARU: sorting by date
 }
 
 // --- BIKIN 2 MODEL BARU INI DI BAWAH ---
@@ -167,6 +178,10 @@ model Comment {
    parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
    replies   Comment[] @relation("CommentReplies")
    notifications     Notification[]
+
+   @@index([postId, parentId])    // BARU: fetch top-level comments
+   @@index([authorId])            // BARU: user's comment history
+   @@index([postId, createdAt(sort: Asc)])  // BARU: paginated comment loading
    
 }
 
@@ -209,6 +224,8 @@ enum NotificationType {
 
    @@index([recipientId, createdAt(sort: Desc)])
    @@index([recipientId, isRead])
+   @@index([actorId])  // untuk cleanup notifikasi kalau actor dihapus
+
    
 }
 
@@ -260,4 +277,47 @@ model SeriesPost {
   @@unique([seriesId, postId])   // satu artikel hanya sekali per series
   @@unique([seriesId, order])    // urutan unik per series
   @@index([postId])
+}
+
+
+model AuditLog {
+   id           String   @id @default(cuid())
+   userId       String
+   action       String   // "post.publish", "post.delete", "profile.update", dll
+   resourceType String?  // "post", "folder", "series"
+   resourceId   String?
+   oldValue     String?  @db.Text  // JSON snapshot sebelum perubahan
+   newValue     String?  @db.Text  // JSON snapshot setelah perubahan
+   ip           String?
+   userAgent    String?
+   createdAt    DateTime @default(now())
+
+   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+   @@index([userId, createdAt(sort: Desc)])
+   @@index([action, createdAt(sort: Desc)])
+   @@index([resourceType, resourceId])
+}
+
+
+model SecurityEvent {
+   id        String            @id @default(cuid())
+   type      SecurityEventType
+   ip        String?
+   userId    String?
+   details   String?           @db.Text  // JSON context
+   createdAt DateTime          @default(now())
+
+   @@index([ip, createdAt(sort: Desc)])
+   @@index([type, createdAt(sort: Desc)])
+   @@index([userId])
+}
+
+enum SecurityEventType {
+   LOGIN_FAILED
+   LOGIN_SUCCESS
+   RATE_LIMIT_HIT
+   SUSPICIOUS_INPUT
+   TOKEN_EXPIRED
+   UNAUTHORIZED_ACCESS
 }
