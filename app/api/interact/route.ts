@@ -1,96 +1,100 @@
+/**
+ * app/api/interact/route.ts  — VERSI HARDENED
+ *
+ * Gantikan file yang sudah ada.
+ *
+ * Perbaikan vs versi lama:
+ *  - IDOR: verifikasi post exist sebelum like/bookmark
+ *  - Atomic: like + counter dalam 1 $transaction
+ *  - Rate limit: max 60 interact/menit per user
+ *  - Input validation: postId divalidasi sebelum query
+ *  - Error: tidak bocorkan detail internal
+ */
+
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
+import {
+    getUserId,
+    toggleLike,
+    toggleBookmark,
+    isValidCuid,
+    unauthorized,
+    badRequest,
+    notFound,
+    serverError,
+    tooManyRequests,
+} from "@/lib/db";
+import { rateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import { notifyNewLike } from "@/lib/createNotification";
+import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
     try {
+        // 1. Auth
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email) {
-            return NextResponse.json({ message: "Harus login" }, { status: 401 });
+        if (!session?.user?.email) return unauthorized();
+
+        const user = await getUserId(session.user.email);
+        if (!user) return unauthorized("Akun tidak ditemukan.");
+
+        // 2. Rate limit per user
+        const rl = rateLimit(`interact:${user.id}`, RATE_LIMITS.interact);
+        if (!rl.allowed) return tooManyRequests(rl.retryAfter);
+
+        // 3. Parse body
+        let body: Record<string, unknown>;
+        try {
+            body = await req.json();
+        } catch {
+            return badRequest("Body tidak valid.");
         }
 
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            select: { id: true },
+        const { action, postId } = body;
+
+        // 4. Validasi input sebelum query ke DB
+        if (!isValidCuid(postId)) {
+            return badRequest("postId tidak valid.");
+        }
+
+        if (action !== "like" && action !== "bookmark") {
+            return badRequest("Aksi tidak dikenal.");
+        }
+
+        // 5. Verifikasi post exist dan published — cegah like ke post orang lain yang private
+        const post = await prisma.post.findFirst({
+            where: { id: postId, published: true },
+            select: { id: true, authorId: true },
         });
-        if (!user) {
-            return NextResponse.json({ message: "User tidak ditemukan" }, { status: 404 });
-        }
 
-        const { action, postId } = await req.json();
+        if (!post) return notFound("Artikel tidak ditemukan.");
 
-        if (!postId || typeof postId !== "string") {
-            return NextResponse.json({ message: "postId tidak valid." }, { status: 400 });
-        }
-
-        // ── LOGIKA LIKE / UNLIKE ──────────────────────────────────────────────
+        // 6. Eksekusi aksi
         if (action === "like") {
-            const existingLike = await prisma.like.findUnique({
-                where: { userId_postId: { userId: user.id, postId } },
-            });
+            const { liked, newCount } = await toggleLike(user.id, postId);
 
-            if (existingLike) {
-                // Unlike — hapus like dan decrement counter dalam satu transaction
-                // Kalau salah satu gagal, keduanya rollback — tidak ada state tidak sinkron
-                await prisma.$transaction([
-                    prisma.like.delete({ where: { id: existingLike.id } }),
-                    prisma.post.update({
-                        where: { id: postId },
-                        data: { likesCount: { decrement: 1 } },
-                    }),
-                ]);
-
-                return NextResponse.json({ message: "Unliked" }, { status: 200 });
-
-            } else {
-                // Like — create like dan increment counter dalam satu transaction
-                await prisma.$transaction([
-                    prisma.like.create({ data: { userId: user.id, postId } }),
-                    prisma.post.update({
-                        where: { id: postId },
-                        data: { likesCount: { increment: 1 } },
-                    }),
-                ]);
-
-                // Notifikasi fire-and-forget — di luar transaction supaya tidak
-                // rollback transaction kalau notif gagal
-                void prisma.post
-                    .findUnique({ where: { id: postId }, select: { authorId: true } })
-                    .then((likedPost) => {
-                        if (likedPost) {
-                            return notifyNewLike({
-                                postAuthorId: likedPost.authorId,
-                                actorId: user.id,
-                                postId,
-                            });
-                        }
-                    });
-
-                return NextResponse.json({ message: "Liked" }, { status: 200 });
+            // Notifikasi fire-and-forget — di luar transaction supaya tidak rollback
+            if (liked && post.authorId !== user.id) {
+                void notifyNewLike({
+                    postAuthorId: post.authorId,
+                    actorId: user.id,
+                    postId,
+                });
             }
+
+            return NextResponse.json(
+                { liked, likesCount: newCount },
+                { status: 200 }
+            );
         }
 
-        // ── LOGIKA BOOKMARK / UNBOOKMARK ──────────────────────────────────────
         if (action === "bookmark") {
-            const existingBookmark = await prisma.bookmark.findUnique({
-                where: { userId_postId: { userId: user.id, postId } },
-            });
-
-            if (existingBookmark) {
-                await prisma.bookmark.delete({ where: { id: existingBookmark.id } });
-                return NextResponse.json({ message: "Unbookmarked" }, { status: 200 });
-            } else {
-                await prisma.bookmark.create({ data: { userId: user.id, postId } });
-                return NextResponse.json({ message: "Bookmarked" }, { status: 200 });
-            }
+            const { bookmarked } = await toggleBookmark(user.id, postId);
+            return NextResponse.json({ bookmarked }, { status: 200 });
         }
-
-        return NextResponse.json({ message: "Aksi tidak dikenali" }, { status: 400 });
 
     } catch (error) {
-        console.error("Interact Error:", error);
-        return NextResponse.json({ message: "Gagal memproses permintaan" }, { status: 500 });
+        console.error("[POST /api/interact]", error);
+        return serverError();
     }
 }

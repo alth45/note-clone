@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, FileText, Eye, Calendar, Bookmark } from "lucide-react";
+import { ArrowLeft, FileText, Eye, Calendar, TrendingUp } from "lucide-react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/api/auth/[...nextauth]/route";
 import prisma from "@/lib/prisma";
@@ -43,7 +43,6 @@ function formatCount(n: number): string {
 export default async function PublicProfilePage({ params }: any) {
     const { handle } = await params;
 
-    // Fetch user + follow counts + artikel bersamaan
     const [user, session] = await Promise.all([
         prisma.user.findUnique({
             where: { handle },
@@ -54,6 +53,7 @@ export default async function PublicProfilePage({ params }: any) {
                 bio: true,
                 image: true,
                 createdAt: true,
+                creatorStatsPublic: true,
                 posts: {
                     where: { published: true },
                     orderBy: { updatedAt: "desc" },
@@ -83,7 +83,6 @@ export default async function PublicProfilePage({ params }: any) {
 
     if (!user) notFound();
 
-    // Cek apakah user yang login sudah follow
     let isFollowing = false;
     let isOwnProfile = false;
 
@@ -107,6 +106,9 @@ export default async function PublicProfilePage({ params }: any) {
             }
         }
     }
+
+    // Tampilkan link creator stats kalau: pemilik profil ATAU stats sudah public
+    const showCreatorLink = isOwnProfile || user.creatorStatsPublic;
 
     const totalViews = user.posts.reduce((s, p) => s + (p.views || 0), 0);
     const totalLikes = user.posts.reduce((s, p) => s + (p.likesCount || 0), 0);
@@ -156,15 +158,29 @@ export default async function PublicProfilePage({ params }: any) {
                                 <p className="text-sm text-sumi-muted mt-0.5">@{handle}</p>
                             </div>
 
-                            {/* Follow button — hanya tampil kalau bukan profil sendiri */}
-                            {!isOwnProfile && (
-                                <FollowButton
-                                    handle={handle}
-                                    targetId={user.id}
-                                    initialFollowing={isFollowing}
-                                    initialCount={user._count.followers}
-                                />
-                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {/* ── Link Creator Stats ── */}
+                                {showCreatorLink && (
+                                    <Link
+                                        href={`/creator/${handle}`}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-sumi-10 text-xs font-medium text-sumi-muted hover:text-sumi hover:border-sumi/30 hover:bg-sumi/5 transition-colors"
+                                        title={isOwnProfile ? "Lihat stats creator kamu" : "Lihat stats creator"}
+                                    >
+                                        <TrendingUp size={13} />
+                                        {isOwnProfile ? "Stats Creator" : "Creator Stats"}
+                                    </Link>
+                                )}
+
+                                {/* Follow button */}
+                                {!isOwnProfile && (
+                                    <FollowButton
+                                        handle={handle}
+                                        targetId={user.id}
+                                        initialFollowing={isFollowing}
+                                        initialCount={user._count.followers}
+                                    />
+                                )}
+                            </div>
                         </div>
 
                         {user.bio && (
@@ -189,15 +205,11 @@ export default async function PublicProfilePage({ params }: any) {
                         {/* Follower / Following counts */}
                         <div className="flex items-center gap-5 mt-4 text-sm">
                             <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-sumi">
-                                    {formatCount(user._count.followers)}
-                                </span>
+                                <span className="font-bold text-sumi">{formatCount(user._count.followers)}</span>
                                 <span className="text-sumi-muted">Pengikut</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-sumi">
-                                    {formatCount(user._count.following)}
-                                </span>
+                                <span className="font-bold text-sumi">{formatCount(user._count.following)}</span>
                                 <span className="text-sumi-muted">Mengikuti</span>
                             </div>
                         </div>
