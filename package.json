@@ -13,6 +13,7 @@
     "@next-auth/prisma-adapter": "^1.0.7",
     "@prisma/adapter-pg": "^7.4.1",
     "@prisma/client": "^7.4.1",
+    "@supabase/supabase-js": "^2.100.0",
     "@tiptap/extension-code": "^3.20.4",
     "@tiptap/extension-code-block": "^3.20.4",
     "@tiptap/extension-image": "^3.20.0",

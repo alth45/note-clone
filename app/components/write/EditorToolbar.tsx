@@ -1,14 +1,24 @@
+/**
+ * app/components/write/EditorToolbar.tsx  — PATCH untuk image upload
+ *
+ * Tambahkan tombol upload gambar di toolbar editor.
+ * Gantikan seluruh file EditorToolbar.tsx yang sudah ada dengan ini.
+ *
+ * Perubahan:
+ *  - Tombol gambar sekarang punya dropdown: Upload File vs URL
+ *  - File diupload ke Supabase, URL langsung di-insert ke editor
+ */
+
 "use client";
 
-// components/write/EditorToolbar.tsx
-// Toolbar formatting Tiptap: Bold, Italic, Heading, dll.
-
+import { useRef, useState } from "react";
 import {
     Bold, Italic, Heading2, Quote, Code, List, ListOrdered,
-    Image as ImageIcon, Braces, Presentation
+    Image as ImageIcon, Braces, Presentation, Upload, Link2, X,
 } from "lucide-react";
 import type { Editor } from "@tiptap/react";
 import { useDialog } from "@/context/DialogContext";
+import { useUpload } from "@/hooks/useUpload";
 
 interface EditorToolbarProps {
     editor: Editor | null;
@@ -16,6 +26,45 @@ interface EditorToolbarProps {
 
 export default function EditorToolbar({ editor }: EditorToolbarProps) {
     const { showPrompt } = useDialog();
+    const { upload, isUploading } = useUpload("editor");
+
+    const [imgMenuOpen, setImgMenuOpen] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Upload file ke Supabase lalu insert ke editor
+    const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !editor) return;
+
+        setImgMenuOpen(false);
+
+        // Masukkan placeholder dulu biar user tahu sedang proses
+        editor.chain().focus().insertContent("<p><em>Mengupload gambar...</em></p>").run();
+
+        const url = await upload(file);
+
+        // Hapus placeholder
+        const html = editor.getHTML();
+        const cleaned = html.replace("<p><em>Mengupload gambar...</em></p>", "");
+        editor.commands.setContent(cleaned);
+
+        if (url) {
+            editor.chain().focus().setImage({ src: url }).run();
+        }
+
+        // Reset input supaya bisa upload file yang sama lagi
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    // Insert gambar dari URL
+    const handleImageUrl = async () => {
+        setImgMenuOpen(false);
+        if (!editor) return;
+        const url = await showPrompt("Masukkan URL gambar:", "Insert dari URL");
+        if (url?.trim()) {
+            editor.chain().focus().setImage({ src: url.trim() }).run();
+        }
+    };
 
     const addSlideEmbed = () => {
         const url = prompt("Masukkan Link Embed Slide:");
@@ -69,7 +118,7 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
             {divider}
 
             <button onClick={() => editor.chain().focus().toggleCode().run()}
-                className={btn(editor.isActive("code"))} title="Inline Code (Ctrl+E)">
+                className={btn(editor.isActive("code"))} title="Inline Code">
                 <Code size={16} />
             </button>
             <button onClick={() => editor.chain().focus().toggleCodeBlock().run()}
@@ -79,16 +128,55 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
 
             {divider}
 
-            <button
-                onClick={async () => {
-                    const url = await showPrompt("Masukkan URL Gambar:", "Insert Image");
-                    if (url) editor.chain().focus().setImage({ src: url }).run();
-                }}
-                className={btn(false)}
-                title="Insert Image"
-            >
-                <ImageIcon size={16} />
-            </button>
+            {/* Image button dengan dropdown */}
+            <div className="relative">
+                <button
+                    onClick={() => setImgMenuOpen((v) => !v)}
+                    disabled={isUploading}
+                    className={`${btn(false)} ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    title="Insert Gambar"
+                >
+                    {isUploading
+                        ? <span className="text-[10px] font-bold px-1">...</span>
+                        : <ImageIcon size={16} />
+                    }
+                </button>
+
+                {imgMenuOpen && (
+                    <>
+                        {/* Backdrop */}
+                        <div
+                            className="fixed inset-0 z-10"
+                            onClick={() => setImgMenuOpen(false)}
+                        />
+                        {/* Dropdown */}
+                        <div className="absolute top-full left-0 mt-1 w-44 bg-washi border border-sumi-10 rounded-xl shadow-lg z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                                onChange={handleImageFile}
+                                className="hidden"
+                            />
+                            <button
+                                onClick={() => { setImgMenuOpen(false); fileInputRef.current?.click(); }}
+                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-xs font-medium text-sumi hover:bg-sumi/5 transition-colors"
+                            >
+                                <Upload size={13} className="text-sumi-muted" />
+                                Upload dari perangkat
+                            </button>
+                            <div className="h-[0.5px] bg-sumi-10 mx-3" />
+                            <button
+                                onClick={handleImageUrl}
+                                className="flex items-center gap-2.5 w-full px-3 py-2.5 text-xs font-medium text-sumi hover:bg-sumi/5 transition-colors"
+                            >
+                                <Link2 size={13} className="text-sumi-muted" />
+                                Insert dari URL
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
 
             {divider}
 
