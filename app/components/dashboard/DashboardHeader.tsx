@@ -5,6 +5,8 @@ import {
     PenSquare, Settings, Camera, Save, X, BarChart2, BookOpen, TrendingUp,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
+import AvatarUploader from "@/components/ui/AvatarUploader";
+
 
 interface DashboardHeaderProps {
     user: any;
@@ -34,7 +36,7 @@ export default function DashboardHeader({
 
             {/* ── Avatar + fields ── */}
             <div className="flex flex-col md:flex-row items-start gap-6 w-full md:w-auto">
-                <div className="relative w-24 h-24 rounded-full overflow-hidden border border-sumi-10 bg-washi-dark shrink-0 group">
+                {/* <div className="relative w-24 h-24 rounded-full overflow-hidden border border-sumi-10 bg-washi-dark shrink-0 group">
                     <img
                         src={
                             user.image ||
@@ -48,7 +50,15 @@ export default function DashboardHeader({
                             <Camera size={24} />
                         </button>
                     )}
-                </div>
+                </div> */}
+                <AvatarUploader
+                    currentImage={user.image}
+                    userName={user.name}
+                    isEditing={isEditing}
+                    onUpdate={(newUrl) => {
+                        // Update local state kalau ada
+                    }}
+                />
 
                 <div className="w-full md:w-[400px]">
                     {isEditing ? (
