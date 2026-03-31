@@ -21,6 +21,7 @@ import PostRecommendation from "@/components/home/PostRecommendation";
 import MobileExploreMenu from "@/components/home/MobileExploreMenu";
 import HomeFeedTabs from "@/components/home/HomeFeedTabs";
 import prisma from "@/lib/prisma";
+import NotesBar from "@/components/home/NotesBar";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +133,19 @@ export default async function Home({
     <div className="flex flex-col gap-12 pb-12">
       <MobileExploreMenu />
       <Hero />
+
+
+      {/* ── Notes/Stories bar ── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-bold text-sumi-muted uppercase tracking-widest flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+            Notes Hari Ini
+          </h2>
+          <span className="text-[10px] text-sumi-muted/50">Hilang dalam 24 jam</span>
+        </div>
+        <NotesBar />
+      </section>
 
       <section className="flex flex-col md:flex-row gap-8 lg:gap-2 relative">
 

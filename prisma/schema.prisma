@@ -28,6 +28,7 @@ model User {
   comments      Comment[]
   deletelog     DeleteLog[]
   series        Series[]
+  notes         Note[]
   
   notifications     Notification[] @relation("UserNotifications")
   actorNotifications Notification[] @relation("UserActorNotifications")
@@ -320,4 +321,23 @@ enum SecurityEventType {
    SUSPICIOUS_INPUT
    TOKEN_EXPIRED
    UNAUTHORIZED_ACCESS
+}
+
+
+model Note {
+  id          String    @id @default(cuid())
+  content     String    @db.VarChar(280)
+  bgColor     String    @default("#1C1C1E")
+  emoji       String?
+  published   Boolean   @default(true)
+  expiresAt   DateTime?
+
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([authorId])
+  @@index([published, expiresAt])
+  @@index([createdAt(sort: Desc)])
 }
