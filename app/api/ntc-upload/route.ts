@@ -219,6 +219,17 @@ export async function POST(req: Request) {
         }
 
         const htmlContent = parseNtcToHtml(rawContent);
+        // =====================DEBUG===================
+        try {
+            const fs = require('fs')
+            fs.writeFile('htmlcontent.txt', htmlContent, (e: any) => {
+                if (e) throw error;
+                console.log("Data berhasil ditulis")
+            })
+        } catch {
+            console.log(error)
+        }
+        // =================================================
         const deterministicSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
         const existingPost = await prisma.post.findFirst({
