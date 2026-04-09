@@ -219,17 +219,8 @@ export async function POST(req: Request) {
         }
 
         const htmlContent = parseNtcToHtml(rawContent);
-        // =====================DEBUG===================
-        try {
-            const fs = require('fs')
-            fs.writeFile('htmlcontent.txt', htmlContent, (e: any) => {
-                if (e) throw error;
-                console.log("Data berhasil ditulis")
-            })
-        } catch {
-            console.log(error)
-        }
-        // =================================================
+
+
         const deterministicSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
         const existingPost = await prisma.post.findFirst({
@@ -260,7 +251,7 @@ export async function POST(req: Request) {
 
             const updatedPost = await prisma.post.update({
                 where: { id: existingPost.id },
-                data: { content: htmlContent, rawContent: rawContent },
+                data: { content: { html: htmlContent }, rawContent: rawContent },
             });
 
             return NextResponse.json(
@@ -272,7 +263,7 @@ export async function POST(req: Request) {
                 data: {
                     title: title.replace(/-/g, " "),
                     slug: deterministicSlug,
-                    content: htmlContent,
+                    content: { html: htmlContent },
                     rawContent: rawContent,
                     published: false,
                     authorId: user.id,
