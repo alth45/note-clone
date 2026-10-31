@@ -29,7 +29,7 @@ export type SafePost = {
     tags: string[];
     coverImage: string | null;
     folderId: string | null;
-    content: unknown;
+    rawContent: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -61,7 +61,7 @@ export const SAFE_POST_SELECT = {
     tags: true,
     coverImage: true,
     folderId: true,
-    content: true,
+    rawContent: true,
     createdAt: true,
     updatedAt: true,
 } as const;
