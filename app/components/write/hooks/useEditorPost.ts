@@ -72,12 +72,13 @@ export function useEditorPost({
                 const data = await res.json();
 
                 const serverTitle = data.title || "Tanpa Judul";
-                const serverContent = typeof data.content === "string" ? data.content : "";
+                // content di DB bertipe Json (Tiptap ProseMirror JSON), bisa berupa object atau string
+                const serverContent = data.content ?? "";
                 const serverTags = Array.isArray(data.tags) ? data.tags : [];
                 const serverCover = data.coverImage ?? null;
 
                 setTitle(serverTitle);
-                setContent(serverContent);
+                setContent(typeof serverContent === "string" ? serverContent : "");
                 setTags(serverTags);
                 editor.commands.setContent(serverContent);
 
