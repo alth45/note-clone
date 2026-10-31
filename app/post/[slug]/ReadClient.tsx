@@ -12,7 +12,7 @@ import {
   PrismLight as SyntaxHighlighterLight,
 } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { vscLightPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import RelatedArticles from "./RelatedArticles";
 import CommentThread from "@/components/ui/CommentThread";
 import { useSearchParams } from "next/navigation";
@@ -144,7 +144,7 @@ export default function ReadClient({ post, relatedPosts = [], relatedReason = 'r
                 const className = codeNode.attribs?.class || '';
                 const match = /language-(\w+)/.exec(className);
                 const lang = match ? match[1] : 'javascript';
-                const highlightStyle = isDark ? vscDarkPlus : vscLightPlus;
+                const highlightStyle = isDark ? vscDarkPlus : oneLight;
                 const Highlighter = isDark ? SyntaxHighlighter : SyntaxHighlighterLight;
                 const bgColor = isDark ? '#1e1e1e' : '#f6f8fa';
                 const borderColor = isDark ? 'border-gray-700/50' : 'border-gray-200';
