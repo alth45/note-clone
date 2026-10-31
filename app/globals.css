@@ -12,6 +12,25 @@
     --sumi-alpha-10: rgba(28, 28, 30, 0.1);
     --matcha: #E4E8D6;
   }
+
+  .dark {
+    --washi: #121214;
+    --washi-dark: #1a1a1e;
+    --sumi: #f2f2f5;
+    --sumi-light: #b4b4bc;
+    --sumi-muted: #6e6e76;
+    --sumi-alpha-10: rgba(255, 255, 255, 0.1);
+    --matcha: #2c2c2e;
+  }
+
+  /* Transisi halus saat ganti tema */
+  html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .transitioning * {
+    transition: none !important;
+  }
 }
 
 @layer utilities {

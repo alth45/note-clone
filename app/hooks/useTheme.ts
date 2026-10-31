@@ -16,7 +16,6 @@ function applyTheme(theme: Theme, animate = false) {
     const html = document.documentElement;
 
     if (animate) {
-        // Tambah class transitioning — CSS pakai ini untuk enable transition
         html.classList.add("transitioning");
         setTimeout(() => html.classList.remove("transitioning"), 250);
     }
@@ -35,11 +34,11 @@ export function useTheme() {
     useEffect(() => {
         const initial = getInitialTheme();
         setTheme(initial);
-        applyTheme(initial, false); // tanpa animasi saat pertama load
+        applyTheme(initial, false);
         setMounted(true);
     }, []);
 
-    // Listen system preference change
+    // Listen system preference change — hanya berlaku kalau user belum pilih secara manual
     useEffect(() => {
         const mq = window.matchMedia("(prefers-color-scheme: dark)");
         const onChange = (e: MediaQueryListEvent) => {
@@ -57,7 +56,7 @@ export function useTheme() {
         setTheme(prev => {
             const next: Theme = prev === "light" ? "dark" : "light";
             localStorage.setItem(KEY, next);
-            applyTheme(next, true); // dengan animasi saat user toggle
+            applyTheme(next, true);
             return next;
         });
     }, []);

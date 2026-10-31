@@ -15,18 +15,10 @@ const config: Config = {
     theme: {
         extend: {
             colors: {
-                // ── Light: kertas putih Jepang ─────────────────────────────
-                washi: {
-                    DEFAULT: "#ffffff",
-                    dark: "#f7f6f2",
-                },
-                // ── Light: tinta hitam Jepang ──────────────────────────────
-                sumi: {
-                    DEFAULT: "#1c1c1e",
-                    light: "#505054",
-                    muted: "#8e8e93",
-                    "10": "rgba(28,28,30,0.10)",
-                },
+                // Warna washi & sumi diatur sebagai CSS variable di globals.css
+                // dengan dukungan dark mode via .dark :root override.
+                // Tidak didefinisikan di sini untuk menghindari konflik
+                // dengan .bg-washi, .text-sumi, dll. di globals.css.
             },
 
             fontFamily: {
